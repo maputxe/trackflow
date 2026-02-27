@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TrackFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #00ff88;
+    --accent2: #ff6b35;
+    --accent3: #3b82f6;
+    --text: #f0f0f0;
+    --muted: #666;
+    --danger: #ff3b30;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  .nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 0 20px;
+    z-index: 100;
+  }
+  .nav-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: none; border: none; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; font-size: 10px; cursor: pointer;
+    transition: color 0.2s;
+    padding: 4px 16px;
+  }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 22px; height: 22px; }
+
+  /* PAGES */
+  .page { display: none; padding: 24px 20px 100px; min-height: 100vh; }
+  .page.active { display: block; }
+
+  /* HEADER */
+  .page-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    line-height: 1;
+  }
+  .page-subtitle { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+
+  /* ACTIVITY SELECTOR */
+  .activity-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    margin-bottom: 28px;
+  }
+  .activity-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .activity-card.selected {
+    border-color: var(--accent);
+    background: rgba(0,255,136,0.08);
+  }
+  .activity-card .icon { font-size: 28px; margin-bottom: 6px; }
+  .activity-card .label { font-size: 11px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
+  .activity-card.selected .label { color: var(--accent); }
+
+  /* MAIN DISPLAY */
+  .main-display {
+    background: var(--surface);
+    border-radius: 24px;
+    padding: 32px 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .main-display::before {
+    content: '';
+    position: absolute;
+    top: -40px; left: 50%; transform: translateX(-50%);
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(0,255,136,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .main-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    line-height: 1;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .main-time.running { color: var(--accent); }
+
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 16px; margin-top: 20px;
+  }
+  .stat { text-align: center; }
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px; font-weight: 700;
+    color: var(--text); line-height: 1;
+  }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+  /* GPS badge */
+  .gps-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface2); border-radius: 20px;
+    padding: 6px 12px; font-size: 11px; color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .gps-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .gps-dot.active { background: var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  /* CONTROLS */
+  .controls { display: flex; gap: 12px; justify-content: center; margin-top: 8px; }
+  .btn-main {
+    width: 80px; height: 80px; border-radius: 50%;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; transition: all 0.15s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .btn-main:active { transform: scale(0.93); }
+  .btn-play { background: var(--accent); color: #000; }
+  .btn-stop { background: var(--danger); color: #fff; width: 60px; height: 60px; font-size: 20px; align-self: center; }
+  .btn-pause { background: var(--surface2); color: var(--text); border: 2px solid var(--border); }
+
+  /* INTERVALS PAGE */
+  .section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--muted); margin-bottom: 12px; font-weight: 600;
+  }
+
+  .interval-builder {
+    background: var(--surface);
+    border-radius: 20px; padding: 20px;
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .interval-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px;
+  }
+  .interval-name {
+    font-weight: 600; font-size: 15px;
+  }
+  .interval-color {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+
+  .time-picker {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; margin-bottom: 16px;
+  }
+  .time-unit { text-align: center; }
+  .time-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 48px; font-weight: 700;
+    color: var(--text); line-height: 1;
+    width: 70px; text-align: center;
+  }
+  .time-sep { font-family: 'JetBrains Mono', monospace; font-size: 40px; color: var(--muted); padding: 0 2px; line-height: 1; }
+  .time-unit-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  .time-btns { display: flex; flex-direction: column; gap: 4px; margin-left: 6px; }
+  .t-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); width: 32px; height: 28px;
+    font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .t-btn:active { background: var(--border); }
+
+  .repeats-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface2); border-radius: 12px; padding: 12px 16px;
+  }
+  .repeats-label { font-size: 14px; color: var(--muted); }
+  .repeats-control { display: flex; align-items: center; gap: 16px; }
+  .rep-btn {
+    background: var(--border); border: none; border-radius: 8px;
+    color: var(--text); width: 32px; height: 32px;
+    font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .rep-count { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; min-width: 28px; text-align: center; }
+
+  /* Interval display (running) */
+  .interval-running {
+    background: var(--surface);
+    border-radius: 24px; padding: 28px 24px;
+    text-align: center; margin-bottom: 20px;
+    border: 1px solid var(--border);
+  }
+  .interval-phase {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px; letter-spacing: 3px;
+    margin-bottom: 4px;
+  }
+  .interval-phase.work { color: var(--accent2); }
+  .interval-phase.rest { color: var(--accent3); }
+  .interval-countdown {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 80px; font-weight: 700;
+    line-height: 1; margin-bottom: 8px;
+  }
+  .interval-countdown.work { color: var(--accent2); }
+  .interval-countdown.rest { color: var(--accent3); }
+  .interval-progress-bar {
+    height: 6px; background: var(--border); border-radius: 3px;
+    margin: 12px 0; overflow: hidden;
+  }
+  .interval-progress-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 0.5s linear;
+  }
+  .interval-progress-fill.work { background: var(--accent2); }
+  .interval-progress-fill.rest { background: var(--accent3); }
+  .interval-series-info {
+    font-size: 13px; color: var(--muted);
+  }
+
+  /* START BTN full width */
+  .btn-full {
+    width: 100%; padding: 18px;
+    background: var(--accent); color: #000;
+    border: none; border-radius: 16px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px; letter-spacing: 2px;
+    cursor: pointer; transition: opacity 0.15s;
+    margin-top: 8px;
+  }
+  .btn-full:active { opacity: 0.85; }
+  .btn-full.danger { background: var(--danger); color: #fff; }
+  .btn-full.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+  /* HISTORY PAGE */
+  .history-empty {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted);
+  }
+  .history-empty .big { font-size: 48px; margin-bottom: 12px; }
+
+  .history-item {
+    background: var(--surface);
+    border-radius: 16px; padding: 16px 20px;
+    margin-bottom: 12px; border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+  }
+  .history-icon { font-size: 28px; }
+  .history-info { flex: 1; }
+  .history-activity { font-weight: 600; font-size: 15px; }
+  .history-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .history-stats { display: flex; gap: 16px; margin-top: 8px; }
+  .h-stat { font-size: 12px; color: var(--muted); }
+  .h-stat strong { color: var(--text); font-family: 'JetBrains Mono', monospace; }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* Summary modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none; align-items: flex-end;
+    z-index: 200;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 28px 28px 0 0;
+    padding: 28px 24px 40px;
+    width: 100%;
+    border-top: 1px solid var(--border);
+  }
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px; letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .modal-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 16px; margin: 24px 0;
+  }
+  .modal-stat {
+    background: var(--surface2);
+    border-radius: 16px; padding: 16px;
+  }
+  .modal-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px; font-weight: 700;
+  }
+  .modal-stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 10px 20px;
+    font-size: 13px; z-index: 300;
+    opacity: 0; transition: opacity 0.3s;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- PAGES -->
+
+<!-- PAGE: TRACKER -->
+<div class="page active" id="page-tracker">
+  <div class="page-title">TRACKFLOW</div>
+  <div class="page-subtitle">Registrá tu actividad</div>
+
+  <div class="activity-grid">
+    <div class="activity-card selected" data-activity="caminar" onclick="selectActivity(this)">
+      <div class="icon">🚶</div>
+      <div class="label">Caminar</div>
+    </div>
+    <div class="activity-card" data-activity="correr" onclick="selectActivity(this)">
+      <div class="icon">🏃</div>
+      <div class="label">Correr</div>
+    </div>
+    <div class="activity-card" data-activity="bici" onclick="selectActivity(this)">
+      <div class="icon">🚴</div>
+      <div class="label">Bici</div>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin-bottom:16px;">
+    <div class="gps-badge">
+      <div class="gps-dot" id="gps-dot"></div>
+      <span id="gps-status">GPS desactivado</span>
+    </div>
+  </div>
+
+  <div class="main-display">
+    <div class="main-time" id="main-time">00:00:00</div>
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-value" id="stat-km">0.00</div>
+        <div class="stat-label">km</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="stat-pace">--:--</div>
+        <div class="stat-label">min/km</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="stat-speed">0.0</div>
+        <div class="stat-label">km/h</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-main btn-stop" id="btn-stop" onclick="stopActivity()" style="display:none">⏹</button>
+    <button class="btn-main btn-play" id="btn-playpause" onclick="toggleActivity()">▶</button>
+  </div>
+</div>
+
+<!-- PAGE: INTERVALS -->
+<div class="page" id="page-intervals">
+  <div class="page-title">SERIES</div>
+  <div class="page-subtitle">Entrenamiento por intervalos</div>
+
+  <!-- Running display (hidden by default) -->
+  <div id="interval-running-display" style="display:none">
+    <div class="interval-running">
+      <div class="interval-phase" id="iv-phase">TRABAJO</div>
+      <div class="interval-countdown" id="iv-countdown">00</div>
+      <div class="interval-progress-bar">
+        <div class="interval-progress-fill work" id="iv-progress"></div>
+      </div>
+      <div class="interval-series-info" id="iv-info">Serie 1 de 4</div>
+    </div>
+    <button class="btn-full danger" onclick="stopIntervals()">DETENER SERIES</button>
+  </div>
+
+  <!-- Config display -->
+  <div id="interval-config-display">
+    <!-- Work interval -->
+    <div class="section-label">Intervalo de trabajo</div>
+    <div class="interval-builder">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <span class="interval-name" style="color:var(--accent2)">🔥 Esfuerzo</span>
+      </div>
+      <div class="time-picker">
+        <div class="time-unit">
+          <div class="time-display" id="work-min">04</div>
+          <div class="time-unit-label">min</div>
+        </div>
+        <div class="time-sep">:</div>
+        <div class="time-unit">
+          <div class="time-display" id="work-sec">00</div>
+          <div class="time-unit-label">seg</div>
+        </div>
+        <div class="time-btns">
+          <button class="t-btn" onclick="adjustTime('work','min',1)">+</button>
+          <button class="t-btn" onclick="adjustTime('work','min',-1)">−</button>
+        </div>
+        <div class="time-btns">
+          <button class="t-btn" onclick="adjustTime('work','sec',15)">+</button>
+          <button class="t-btn" onclick="adjustTime('work','sec',-15)">−</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rest interval -->
+    <div class="section-label">Intervalo de descanso</div>
+    <div class="interval-builder">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <span class="interval-name" style="color:var(--accent3)">💤 Descanso</span>
+      </div>
+      <div class="time-picker">
+        <div class="time-unit">
+          <div class="time-display" id="rest-min">00</div>
+          <div class="time-unit-label">min</div>
+        </div>
+        <div class="time-sep">:</div>
+        <div class="time-unit">
+          <div class="time-display" id="rest-sec">30</div>
+          <div class="time-unit-label">seg</div>
+        </div>
+        <div class="time-btns">
+          <button class="t-btn" onclick="adjustTime('rest','min',1)">+</button>
+          <button class="t-btn" onclick="adjustTime('rest','min',-1)">−</button>
+        </div>
+        <div class="time-btns">
+          <button class="t-btn" onclick="adjustTime('rest','sec',15)">+</button>
+          <button class="t-btn" onclick="adjustTime('rest','sec',-15)">−</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Repeats -->
+    <div class="section-label">Repeticiones</div>
+    <div class="interval-builder">
+      <div class="repeats-row">
+        <span class="repeats-label">Número de series</span>
+        <div class="repeats-control">
+          <button class="rep-btn" onclick="adjustRepeats(-1)">−</button>
+          <span class="rep-count" id="repeats-display">4</span>
+          <button class="rep-btn" onclick="adjustRepeats(1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-full" onclick="startIntervals()">INICIAR SERIES</button>
+  </div>
+</div>
+
+<!-- PAGE: HISTORY -->
+<div class="page" id="page-history">
+  <div class="page-title">HISTORIAL</div>
+  <div class="page-subtitle">Tus actividades registradas</div>
+  <div id="history-list">
+    <div class="history-empty">
+      <div class="big">📋</div>
+      <div>Todavía no hay actividades.<br>¡A moverse!</div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" id="nav-tracker" onclick="showPage('tracker')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Actividad
+  </button>
+  <button class="nav-btn" id="nav-intervals" onclick="showPage('intervals')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    Series
+  </button>
+  <button class="nav-btn" id="nav-history" onclick="showPage('history')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Historial
+  </button>
+</nav>
+
+<!-- Summary Modal -->
+<div class="modal-overlay" id="summary-modal">
+  <div class="modal">
+    <div class="modal-title">¡ACTIVIDAD COMPLETADA!</div>
+    <div style="color:var(--muted);font-size:13px" id="summary-activity-label">Caminata</div>
+    <div class="modal-grid">
+      <div class="modal-stat">
+        <div class="modal-stat-value" id="s-time">00:00:00</div>
+        <div class="modal-stat-label">Tiempo</div>
+      </div>
+      <div class="modal-stat">
+        <div class="modal-stat-value" id="s-km">0.00 km</div>
+        <div class="modal-stat-label">Distancia</div>
+      </div>
+      <div class="modal-stat">
+        <div class="modal-stat-value" id="s-pace">--:--</div>
+        <div class="modal-stat-label">Ritmo medio</div>
+      </div>
+      <div class="modal-stat">
+        <div class="modal-stat-value" id="s-speed">0.0</div>
+        <div class="modal-stat-label">Vel. media km/h</div>
+      </div>
+    </div>
+    <button class="btn-full" onclick="saveActivity()">GUARDAR</button>
+    <button class="btn-full secondary" style="margin-top:8px" onclick="discardActivity()">DESCARTAR</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- STATE ----
+let currentPage = 'tracker';
+let selectedActivity = 'caminar';
+let isRunning = false;
+let isPaused = false;
+let startTime = null;
+let pausedTime = 0;
+let timerInterval = null;
+let watchId = null;
+let lastPos = null;
+let totalDistance = 0;
+let currentSpeed = 0;
+let history = JSON.parse(localStorage.getItem('tf_history') || '[]');
+
+// Interval state
+let ivWorkMin = 4, ivWorkSec = 0;
+let ivRestMin = 0, ivRestSec = 30;
+let ivRepeats = 4;
+let ivRunning = false;
+let ivCurrentSerie = 1;
+let ivPhase = 'work'; // 'work' | 'rest'
+let ivTimeLeft = 0;
+let ivInterval = null;
+
+// ---- NAVIGATION ----
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  currentPage = page;
+  if (page === 'history') renderHistory();
+}
+
+// ---- ACTIVITY SELECTOR ----
+function selectActivity(card) {
+  if (isRunning) return;
+  document.querySelectorAll('.activity-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  selectedActivity = card.dataset.activity;
+}
+
+// ---- TIMER ----
+function toggleActivity() {
+  if (!isRunning && !isPaused) {
+    startActivity();
+  } else if (isRunning) {
+    pauseActivity();
+  } else if (isPaused) {
+    resumeActivity();
+  }
+}
+
+function startActivity() {
+  isRunning = true; isPaused = false;
+  startTime = Date.now();
+  totalDistance = 0; currentSpeed = 0; lastPos = null;
+  document.getElementById('btn-stop').style.display = 'flex';
+  document.getElementById('btn-playpause').innerHTML = '⏸';
+  document.getElementById('main-time').classList.add('running');
+  startGPS();
+  timerInterval = setInterval(updateTimer, 100);
+  document.querySelectorAll('.activity-card').forEach(c => c.style.pointerEvents = 'none');
+}
+
+function pauseActivity() {
+  isRunning = false; isPaused = true;
+  pausedTime += Date.now() - startTime;
+  clearInterval(timerInterval);
+  stopGPS();
+  document.getElementById('btn-playpause').innerHTML = '▶';
+  document.getElementById('main-time').classList.remove('running');
+}
+
+function resumeActivity() {
+  isRunning = true; isPaused = false;
+  startTime = Date.now();
+  document.getElementById('btn-playpause').innerHTML = '⏸';
+  document.getElementById('main-time').classList.add('running');
+  startGPS();
+  timerInterval = setInterval(updateTimer, 100);
+}
+
+function stopActivity() {
+  if (!isRunning && !isPaused) return;
+  clearInterval(timerInterval);
+  stopGPS();
+  isRunning = false; isPaused = false;
+
+  const elapsed = pausedTime + (startTime ? Date.now() - startTime : 0);
+  const secs = Math.floor(elapsed / 1000);
+  showSummary(secs, totalDistance);
+
+  document.getElementById('main-time').classList.remove('running');
+  document.getElementById('btn-playpause').innerHTML = '▶';
+  document.getElementById('btn-stop').style.display = 'none';
+  document.querySelectorAll('.activity-card').forEach(c => c.style.pointerEvents = '');
+  pausedTime = 0; startTime = null;
+}
+
+function updateTimer() {
+  const elapsed = pausedTime + (Date.now() - startTime);
+  document.getElementById('main-time').textContent = formatTime(Math.floor(elapsed / 1000));
+  // Update pace
+  if (totalDistance > 0) {
+    const secs = elapsed / 1000;
+    const paceSecPerKm = secs / totalDistance;
+    document.getElementById('stat-pace').textContent = formatPace(paceSecPerKm);
+  }
+}
+
+// ---- GPS ----
+function startGPS() {
+  if (!navigator.geolocation) {
+    setGpsStatus(false, 'GPS no disponible');
+    return;
+  }
+  setGpsStatus(false, 'Buscando GPS...');
+  watchId = navigator.geolocation.watchPosition(
+    onGPSUpdate,
+    onGPSError,
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+  );
+}
+
+function stopGPS() {
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+  setGpsStatus(false, 'GPS desactivado');
+}
+
+function onGPSUpdate(pos) {
+  setGpsStatus(true, 'GPS activo');
+  const { latitude, longitude, speed, accuracy } = pos.coords;
+  if (accuracy > 30) return; // ignore poor accuracy
+
+  if (lastPos) {
+    const dist = haversine(lastPos.lat, lastPos.lng, latitude, longitude);
+    if (dist < 0.0005) return; // ignore tiny movements (GPS drift)
+    totalDistance += dist;
+    document.getElementById('stat-km').textContent = totalDistance.toFixed(2);
+  }
+  lastPos = { lat: latitude, lng: longitude };
+
+  // Speed
+  if (speed !== null && speed >= 0) {
+    currentSpeed = speed * 3.6; // m/s to km/h
+  } else if (lastPos) {
+    // estimado
+  }
+  document.getElementById('stat-speed').textContent = currentSpeed.toFixed(1);
+
+  // Auto-detect activity based on speed
+  autoDetectActivity(currentSpeed);
+}
+
+function onGPSError(err) {
+  setGpsStatus(false, 'Error GPS');
+}
+
+function setGpsStatus(active, text) {
+  document.getElementById('gps-dot').className = 'gps-dot' + (active ? ' active' : '');
+  document.getElementById('gps-status').textContent = text;
+}
+
+function autoDetectActivity(kmh) {
+  if (!isRunning) return;
+  let detected = 'caminar';
+  if (kmh > 6 && kmh < 25) detected = 'correr';
+  else if (kmh >= 25) detected = 'bici';
+  // Solo actualiza el label visual, no cambia selección manual
+}
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ---- SUMMARY ----
+let pendingSummary = null;
+
+function showSummary(secs, km) {
+  const icons = { caminar:'🚶', correr:'🏃', bici:'🚴' };
+  const labels = { caminar:'Caminata', correr:'Carrera', bici:'Ciclismo' };
+  pendingSummary = { secs, km, activity: selectedActivity };
+
+  document.getElementById('s-time').textContent = formatTime(secs);
+  document.getElementById('s-km').textContent = km.toFixed(2) + ' km';
+  document.getElementById('summary-activity-label').textContent = icons[selectedActivity] + ' ' + labels[selectedActivity];
+  const paceStr = km > 0 ? formatPace(secs / km) : '--:--';
+  document.getElementById('s-pace').textContent = paceStr;
+  const speedStr = secs > 0 ? ((km / secs) * 3600).toFixed(1) : '0.0';
+  document.getElementById('s-speed').textContent = speedStr;
+
+  document.getElementById('summary-modal').classList.add('show');
+  document.getElementById('stat-km').textContent = '0.00';
+  document.getElementById('stat-pace').textContent = '--:--';
+  document.getElementById('stat-speed').textContent = '0.0';
+  document.getElementById('main-time').textContent = '00:00:00';
+}
+
+function saveActivity() {
+  if (!pendingSummary) return;
+  history.unshift({ ...pendingSummary, date: new Date().toISOString() });
+  localStorage.setItem('tf_history', JSON.stringify(history));
+  document.getElementById('summary-modal').classList.remove('show');
+  showToast('✅ Actividad guardada');
+  pendingSummary = null;
+}
+
+function discardActivity() {
+  document.getElementById('summary-modal').classList.remove('show');
+  pendingSummary = null;
+}
+
+// ---- HISTORY ----
+function renderHistory() {
+  const container = document.getElementById('history-list');
+  if (history.length === 0) {
+    container.innerHTML = `<div class="history-empty"><div class="big">📋</div><div>Todavía no hay actividades.<br>¡A moverse!</div></div>`;
+    return;
+  }
+  const icons = { caminar:'🚶', correr:'🏃', bici:'🚴' };
+  const labels = { caminar:'Caminata', correr:'Carrera', bici:'Ciclismo' };
+  container.innerHTML = history.map(h => {
+    const d = new Date(h.date);
+    const dateStr = d.toLocaleDateString('es-AR', { day:'numeric', month:'short', year:'numeric' });
+    const timeStr = d.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    const paceStr = h.km > 0 ? formatPace(h.secs / h.km) : '--:--';
+    return `<div class="history-item">
+      <div class="history-icon">${icons[h.activity]}</div>
+      <div class="history-info">
+        <div class="history-activity">${labels[h.activity]}</div>
+        <div class="history-date">${dateStr} a las ${timeStr}</div>
+        <div class="history-stats">
+          <div class="h-stat"><strong>${formatTime(h.secs)}</strong> tiempo</div>
+          <div class="h-stat"><strong>${h.km.toFixed(2)}</strong> km</div>
+          <div class="h-stat"><strong>${paceStr}</strong> min/km</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ---- AUDIO ----
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function beep(frequency, duration, volume = 0.6, type = 'sine') {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = frequency;
+    osc.type = type;
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  } catch(e) {}
+}
+
+function playWorkSound() {
+  // Dos pitidos cortos agudos → ¡a correr!
+  beep(880, 0.12, 0.7);
+  setTimeout(() => beep(1100, 0.2, 0.7), 150);
+}
+
+function playRestSound() {
+  // Un pitido largo grave → a descansar
+  beep(440, 0.5, 0.6);
+}
+
+function playFinishSound() {
+  // Melodía corta de victoria
+  beep(523, 0.15, 0.7);
+  setTimeout(() => beep(659, 0.15, 0.7), 170);
+  setTimeout(() => beep(784, 0.15, 0.7), 340);
+  setTimeout(() => beep(1047, 0.4, 0.7), 510);
+}
+
+function playCountdownBeep() {
+  // Tick suave para los últimos 3 segundos
+  beep(660, 0.08, 0.4, 'square');
+}
+
+// Desbloquear AudioContext en primer toque (requerido en iOS)
+document.addEventListener('touchstart', () => { try { getAudioCtx(); } catch(e){} }, { once: true });
+
+// ---- INTERVALS ----
+function adjustTime(type, unit, delta) {
+  if (type === 'work') {
+    if (unit === 'min') ivWorkMin = Math.max(0, Math.min(59, ivWorkMin + delta));
+    else ivWorkSec = Math.max(0, Math.min(59, ivWorkSec + delta));
+    if (ivWorkMin === 0 && ivWorkSec < 5) { ivWorkSec = 5; } // min 5s
+    document.getElementById('work-min').textContent = String(ivWorkMin).padStart(2,'0');
+    document.getElementById('work-sec').textContent = String(ivWorkSec).padStart(2,'0');
+  } else {
+    if (unit === 'min') ivRestMin = Math.max(0, Math.min(59, ivRestMin + delta));
+    else ivRestSec = Math.max(0, Math.min(59, ivRestSec + delta));
+    document.getElementById('rest-min').textContent = String(ivRestMin).padStart(2,'0');
+    document.getElementById('rest-sec').textContent = String(ivRestSec).padStart(2,'0');
+  }
+}
+
+function adjustRepeats(delta) {
+  ivRepeats = Math.max(1, Math.min(20, ivRepeats + delta));
+  document.getElementById('repeats-display').textContent = ivRepeats;
+}
+
+
+
+function tickInterval() {
+  ivTimeLeft--;
+  if (ivTimeLeft <= 0) {
+    if (ivPhase === 'work') {
+      const restTotal = ivRestMin * 60 + ivRestSec;
+      if (restTotal > 0) {
+        ivPhase = 'rest';
+        ivTimeLeft = restTotal;
+        playRestSound();
+      } else {
+        nextSerie();
+        return;
+      }
+    } else {
+      nextSerie();
+      return;
+    }
+  } else if (ivTimeLeft <= 3) {
+    playCountdownBeep();
+  }
+  updateIntervalDisplay();
+}
+
+function startIntervals() {
+  // Unlock audio on button press
+  try { getAudioCtx(); } catch(e) {}
+  ivCurrentSerie = 1;
+  ivPhase = 'work';
+  ivTimeLeft = ivWorkMin * 60 + ivWorkSec;
+  ivRunning = true;
+  document.getElementById('interval-config-display').style.display = 'none';
+  document.getElementById('interval-running-display').style.display = 'block';
+  updateIntervalDisplay();
+  playWorkSound();
+  ivInterval = setInterval(tickInterval, 1000);
+}
+
+function nextSerie() {
+  if (ivCurrentSerie >= ivRepeats) {
+    stopIntervals(true);
+    return;
+  }
+  ivCurrentSerie++;
+  ivPhase = 'work';
+  ivTimeLeft = ivWorkMin * 60 + ivWorkSec;
+  playWorkSound();
+  updateIntervalDisplay();
+}
+
+function updateIntervalDisplay() {
+  const isWork = ivPhase === 'work';
+  const total = isWork ? (ivWorkMin*60+ivWorkSec) : (ivRestMin*60+ivRestSec);
+  const pct = total > 0 ? ((total - ivTimeLeft) / total * 100) : 0;
+
+  const phaseEl = document.getElementById('iv-phase');
+  const countEl = document.getElementById('iv-countdown');
+  const progEl = document.getElementById('iv-progress');
+
+  phaseEl.textContent = isWork ? '🔥 TRABAJO' : '💤 DESCANSO';
+  phaseEl.className = 'interval-phase ' + ivPhase;
+  countEl.textContent = String(Math.floor(ivTimeLeft/60)).padStart(2,'0') + ':' + String(ivTimeLeft%60).padStart(2,'0');
+  countEl.className = 'interval-countdown ' + ivPhase;
+  progEl.className = 'interval-progress-fill ' + ivPhase;
+  progEl.style.width = pct + '%';
+  document.getElementById('iv-info').textContent = `Serie ${ivCurrentSerie} de ${ivRepeats}`;
+}
+
+function stopIntervals(completed = false) {
+  clearInterval(ivInterval);
+  ivRunning = false;
+  document.getElementById('interval-config-display').style.display = 'block';
+  document.getElementById('interval-running-display').style.display = 'none';
+  if (completed) { playFinishSound(); showToast('🎉 ¡Series completadas!'); }
+}
+
+// ---- UTILS ----
+function formatTime(s) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function formatPace(secPerKm) {
+  if (!isFinite(secPerKm) || secPerKm <= 0) return '--:--';
+  const m = Math.floor(secPerKm / 60);
+  const s = Math.floor(secPerKm % 60);
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
