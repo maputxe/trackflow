@@ -1,4 +1,4 @@
-const CACHE = 'trackflow-v1';
+const CACHE = 'trackflow-v2';
 const ASSETS = [
   '/trackflow/',
   '/trackflow/index.html',
