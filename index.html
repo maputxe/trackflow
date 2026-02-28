@@ -5,415 +5,256 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TrackFlow</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#00ff88">
+<meta name="theme-color" content="#39ff6e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TrackFlow">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Oxanium:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0d0f0a;
-    --lcd: #0a1a0e;
-    --lcd-lit: #1a3320;
-    --green: #39ff6e;
-    --green-dim: #1a6630;
-    --green-dark: #0d3318;
-    --amber: #ffb800;
-    --red: #ff3030;
-    --text: #39ff6e;
-    --muted: #1f6635;
-    --border: #1a4025;
-    --surface: #0d1a10;
-    --surface2: #111f14;
-  }
+:root {
+  --bg: #0d0f0a;
+  --lcd: #0a1a0e;
+  --green: #39ff6e;
+  --green-dim: #1a6630;
+  --green-dark: #0d3318;
+  --amber: #ffb800;
+  --blue: #38bdf8;
+  --red: #ff3030;
+  --muted: #1f6635;
+  --border: #1a4025;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  background: var(--bg);
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh; overflow-x: hidden;
+}
+body::after {
+  content:''; position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.025) 0px, rgba(0,0,0,0.025) 1px, transparent 1px, transparent 3px);
+  pointer-events:none; z-index:9999;
+}
+.nav {
+  display:flex; justify-content:space-around; align-items:center;
+  position:fixed; bottom:0; left:0; right:0;
+  background:#080e09; border-top:2px solid var(--border);
+  padding:10px 0 18px; z-index:100;
+}
+.nav-btn {
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  background:none; border:none; color:var(--muted);
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  cursor:pointer; padding:4px 14px; text-transform:uppercase; letter-spacing:1px;
+}
+.nav-btn.active { color:var(--green); text-shadow:0 0 8px var(--green); }
+.nav-btn svg { width:20px; height:20px; }
+.page { display:none; padding:20px 16px 100px; min-height:100vh; }
+.page.active { display:block; }
+.page-title {
+  font-family:'VT323',monospace; font-size:48px; letter-spacing:4px;
+  color:var(--green); text-shadow:0 0 10px var(--green), 0 0 20px rgba(57,255,110,0.3);
+  margin-bottom:2px; line-height:1;
+}
+.page-subtitle { color:var(--muted); font-size:11px; margin-bottom:20px; text-transform:uppercase; letter-spacing:2px; }
+.lcd-screen {
+  background:var(--lcd); border:3px solid #0a2010;
+  box-shadow:inset 0 0 20px rgba(0,0,0,0.8), 0 0 15px rgba(57,255,110,0.1);
+  padding:20px 16px; margin-bottom:16px; position:relative;
+}
+.lcd-screen::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg,rgba(57,255,110,0.03) 0%,transparent 50%,rgba(0,0,0,0.1) 100%);
+  pointer-events:none;
+}
+.activity-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+.activity-card {
+  background:var(--lcd); border:2px solid var(--green-dark);
+  padding:12px 6px; text-align:center; cursor:pointer; transition:all 0.1s;
+}
+.activity-card.selected { border-color:var(--green); background:var(--green-dark); box-shadow:0 0 8px rgba(57,255,110,0.3); }
+.activity-card .icon { display:flex; justify-content:center; margin-bottom:4px; }
+.activity-card .icon svg { stroke:var(--muted); }
+.activity-card.selected .icon svg { stroke:var(--green); }
+.activity-card .label { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+.activity-card.selected .label { color:var(--green); }
+.main-time {
+  font-family:'VT323',monospace; font-size:80px; line-height:1;
+  color:var(--green-dim); text-align:center; letter-spacing:4px; transition:all 0.2s;
+}
+.main-time.running { color:var(--green); text-shadow:0 0 12px var(--green), 0 0 24px rgba(57,255,110,0.4); }
+.stats-row {
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:0; margin-top:12px; border-top:1px solid var(--border); padding-top:12px;
+}
+.stat { text-align:center; }
+.stat-value { font-family:'VT323',monospace; font-size:28px; color:var(--green); line-height:1; }
+.stat-label { font-size:8px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+.gps-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--lcd); border:1px solid var(--border);
+  padding:5px 10px; font-size:10px; color:var(--muted);
+  margin-bottom:12px; text-transform:uppercase; letter-spacing:1px;
+}
+.gps-dot { width:6px; height:6px; background:var(--muted); transition:background 0.3s; }
+.gps-dot.active { background:var(--green); box-shadow:0 0 6px var(--green); animation:blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+.controls { display:flex; gap:16px; justify-content:center; margin-top:16px; }
+.btn-main {
+  width:72px; height:72px; border:3px solid; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.1s; background:var(--lcd);
+}
+.btn-main:active { transform:scale(0.9); filter:brightness(1.3); }
+.btn-play { border-color:var(--green); color:var(--green); box-shadow:0 0 10px rgba(57,255,110,0.3); }
+.btn-stop { border-color:var(--red); color:var(--red); width:56px; height:56px; align-self:center; }
+.section-label {
+  font-size:9px; text-transform:uppercase; letter-spacing:3px;
+  color:var(--muted); margin-bottom:8px; border-bottom:1px solid var(--border); padding-bottom:4px;
+}
+.interval-builder { background:var(--lcd); border:2px solid var(--border); padding:16px; margin-bottom:12px; }
+.interval-name { font-size:11px; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; }
+.time-picker { display:flex; align-items:center; justify-content:center; gap:0; margin-bottom:12px; }
+.time-unit { text-align:center; }
+.time-display { font-family:'VT323',monospace; font-size:56px; color:var(--green); line-height:1; width:64px; text-align:center; }
+.time-sep { font-family:'VT323',monospace; font-size:48px; color:var(--muted); padding:0 2px; line-height:1; }
+.time-unit-label { font-size:8px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+.time-btns { display:flex; flex-direction:column; gap:4px; margin-left:8px; }
+.t-btn {
+  background:var(--lcd); border:1px solid var(--border);
+  color:var(--green); width:30px; height:26px; font-size:16px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:'VT323',monospace;
+}
+.t-btn:active { background:var(--green-dark); }
+.repeats-row { display:flex; align-items:center; justify-content:space-between; background:var(--lcd); border:1px solid var(--border); padding:10px 14px; }
+.repeats-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+.repeats-control { display:flex; align-items:center; gap:16px; }
+.rep-btn { background:var(--green-dark); border:1px solid var(--border); color:var(--green); width:30px; height:30px; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:'VT323',monospace; }
+.rep-count { font-family:'VT323',monospace; font-size:28px; color:var(--green); min-width:28px; text-align:center; }
+.interval-running { background:var(--lcd); border:3px solid var(--border); padding:24px 16px; text-align:center; margin-bottom:16px; }
+.interval-phase { font-family:'VT323',monospace; font-size:36px; letter-spacing:4px; margin-bottom:4px; }
+.interval-phase.work { color:var(--amber); text-shadow:0 0 10px rgba(255,184,0,0.5); }
+.interval-phase.rest { color:var(--green); text-shadow:0 0 10px rgba(57,255,110,0.5); }
+.interval-countdown { font-family:'VT323',monospace; font-size:100px; line-height:1; margin-bottom:8px; letter-spacing:4px; }
+.interval-countdown.work { color:var(--amber); text-shadow:0 0 15px rgba(255,184,0,0.6); }
+.interval-countdown.rest { color:var(--green); text-shadow:0 0 15px rgba(57,255,110,0.6); }
+.interval-progress-bar { height:4px; background:var(--green-dark); margin:10px 0; overflow:hidden; }
+.interval-progress-fill { height:100%; transition:width 0.5s linear; }
+.interval-progress-fill.work { background:var(--amber); }
+.interval-progress-fill.rest { background:var(--green); }
+.interval-series-info { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; }
+.btn-full {
+  width:100%; padding:16px; background:var(--green-dark); color:var(--green);
+  border:2px solid var(--green); font-family:'VT323',monospace; font-size:22px;
+  letter-spacing:3px; text-transform:uppercase; cursor:pointer; transition:all 0.1s;
+  margin-top:8px;
+}
+.btn-full:active { background:var(--green); color:#000; }
+.btn-full.danger { background:rgba(255,48,48,0.1); color:var(--red); border-color:var(--red); }
+.btn-full.danger:active { background:var(--red); color:#000; }
+.btn-full.secondary { background:var(--lcd); color:var(--muted); border-color:var(--border); }
+.history-empty { text-align:center; padding:60px 20px; color:var(--muted); }
+.history-item {
+  background:var(--lcd); border:1px solid var(--border);
+  padding:14px 16px; margin-bottom:8px;
+  display:flex; align-items:flex-start; gap:14px; cursor:pointer;
+}
+.history-item:active { border-color:var(--green); }
+.history-icon { font-family:'VT323',monospace; font-size:16px; color:var(--muted); min-width:38px; padding-top:2px; }
+.history-info { flex:1; }
+.history-activity { font-size:13px; text-transform:uppercase; letter-spacing:2px; color:var(--green); }
+.history-date { font-size:10px; color:var(--muted); margin-top:2px; text-transform:uppercase; }
+.history-stats { display:flex; gap:12px; margin-top:6px; flex-wrap:wrap; }
+.h-stat { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+.h-stat strong { color:var(--green); font-family:'VT323',monospace; font-size:16px; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-  body {
-    background: var(--bg);
-    background-image: 
-      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
-    color: var(--text);
-    font-family: 'Share Tech Mono', monospace;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Scanline overlay */
-  body::after {
-    content: '';
-    position: fixed; inset: 0;
-    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 3px);
-    pointer-events: none; z-index: 9999;
-  }
-
-  /* NAV */
-  .nav {
-    display: flex; justify-content: space-around; align-items: center;
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: #080e09;
-    border-top: 2px solid var(--border);
-    padding: 10px 0 18px; z-index: 100;
-  }
-  .nav-btn {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    background: none; border: none; color: var(--muted);
-    font-family: 'Share Tech Mono', monospace; font-size: 9px;
-    cursor: pointer; transition: color 0.1s; padding: 4px 16px;
-    text-transform: uppercase; letter-spacing: 1px;
-  }
-  .nav-btn.active { color: var(--green); text-shadow: 0 0 8px var(--green); }
-  .nav-btn svg { width: 20px; height: 20px; }
-
-  /* PAGES */
-  .page { display: none; padding: 20px 16px 100px; min-height: 100vh; }
-  .page.active { display: block; }
-
-  /* HEADER */
-  .page-title {
-    font-family: 'VT323', monospace;
-    font-size: 48px; letter-spacing: 4px;
-    color: var(--green);
-    text-shadow: 0 0 10px var(--green), 0 0 20px rgba(57,255,110,0.3);
-    margin-bottom: 2px; line-height: 1;
-  }
-  .page-subtitle {
-    color: var(--muted); font-size: 11px; margin-bottom: 20px;
-    text-transform: uppercase; letter-spacing: 2px;
-  }
-
-  /* LCD SCREEN wrapper */
-  .lcd-screen {
-    background: var(--lcd);
-    border: 3px solid #0a2010;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 15px rgba(57,255,110,0.1);
-    padding: 20px 16px;
-    margin-bottom: 16px;
-    position: relative;
-  }
-  .lcd-screen::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(57,255,110,0.03) 0%, transparent 50%, rgba(0,0,0,0.1) 100%);
-    pointer-events: none;
-  }
-
-  /* ACTIVITY SELECTOR */
-  .activity-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
-    margin-bottom: 16px;
-  }
-  .activity-card {
-    background: var(--lcd);
-    border: 2px solid var(--green-dark);
-    padding: 12px 6px; text-align: center;
-    cursor: pointer; transition: all 0.1s;
-  }
-  .activity-card.selected {
-    border-color: var(--green);
-    background: var(--green-dark);
-    box-shadow: 0 0 8px rgba(57,255,110,0.3);
-  }
-  .activity-card .icon svg { stroke: var(--muted); }
-  .activity-card.selected .icon svg { stroke: var(--green); }
-  .activity-card .label {
-    font-size: 9px; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 1px;
-    font-family: 'Share Tech Mono', monospace;
-  }
-  .activity-card.selected .label { color: var(--green); }
-
-  /* MAIN TIME */
-  .main-time {
-    font-family: 'VT323', monospace;
-    font-size: 80px; line-height: 1;
-    color: var(--green-dim);
-    text-align: center;
-    letter-spacing: 4px;
-    text-shadow: none;
-    transition: all 0.2s;
-  }
-  .main-time.running {
-    color: var(--green);
-    text-shadow: 0 0 12px var(--green), 0 0 24px rgba(57,255,110,0.4);
-  }
-
-  .stats-row {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 0; margin-top: 12px;
-    border-top: 1px solid var(--border);
-    padding-top: 12px;
-  }
-  .stat { text-align: center; }
-  .stat-value {
-    font-family: 'VT323', monospace;
-    font-size: 28px; color: var(--green);
-    text-shadow: 0 0 6px rgba(57,255,110,0.5);
-    line-height: 1;
-  }
-  .stat-label {
-    font-size: 8px; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;
-  }
-
-  /* GPS badge */
-  .gps-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: var(--lcd); border: 1px solid var(--border);
-    padding: 5px 10px; font-size: 10px; color: var(--muted);
-    margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;
-  }
-  .gps-dot {
-    width: 6px; height: 6px;
-    background: var(--muted); transition: background 0.3s;
-  }
-  .gps-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 1s infinite; }
-  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
-  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-
-  /* CONTROLS */
-  .controls { display: flex; gap: 16px; justify-content: center; margin-top: 16px; }
-  .btn-main {
-    width: 72px; height: 72px;
-    border: 3px solid; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; transition: all 0.1s;
-    font-family: 'VT323', monospace;
-    background: var(--lcd);
-  }
-  .btn-main:active { transform: scale(0.9); filter: brightness(1.3); }
-  .btn-play { border-color: var(--green); color: var(--green); box-shadow: 0 0 10px rgba(57,255,110,0.3); }
-  .btn-stop { border-color: var(--red); color: var(--red); width: 56px; height: 56px; font-size: 16px; align-self: center; box-shadow: 0 0 10px rgba(255,48,48,0.2); }
-  .btn-pause { border-color: var(--muted); color: var(--muted); }
-
-  /* SECTION LABEL */
-  .section-label {
-    font-size: 9px; text-transform: uppercase; letter-spacing: 3px;
-    color: var(--muted); margin-bottom: 8px;
-    border-bottom: 1px solid var(--border); padding-bottom: 4px;
-  }
-
-  /* INTERVAL BUILDER */
-  .interval-builder {
-    background: var(--lcd);
-    border: 2px solid var(--border);
-    padding: 16px; margin-bottom: 12px;
-  }
-  .interval-name {
-    font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
-    margin-bottom: 12px;
-  }
-
-  .time-picker {
-    display: flex; align-items: center; justify-content: center;
-    gap: 0; margin-bottom: 12px;
-  }
-  .time-unit { text-align: center; }
-  .time-display {
-    font-family: 'VT323', monospace;
-    font-size: 56px; color: var(--green);
-    text-shadow: 0 0 8px rgba(57,255,110,0.5);
-    line-height: 1; width: 64px; text-align: center;
-  }
-  .time-sep { font-family: 'VT323', monospace; font-size: 48px; color: var(--muted); padding: 0 2px; line-height: 1; }
-  .time-unit-label { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-
-  .time-btns { display: flex; flex-direction: column; gap: 4px; margin-left: 8px; }
-  .t-btn {
-    background: var(--surface2); border: 1px solid var(--border);
-    color: var(--green); width: 30px; height: 26px;
-    font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-    font-family: 'VT323', monospace;
-  }
-  .t-btn:active { background: var(--green-dark); }
-
-  .repeats-row {
-    display: flex; align-items: center; justify-content: space-between;
-    background: var(--lcd); border: 1px solid var(--border); padding: 10px 14px;
-  }
-  .repeats-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-  .repeats-control { display: flex; align-items: center; gap: 16px; }
-  .rep-btn {
-    background: var(--green-dark); border: 1px solid var(--border);
-    color: var(--green); width: 30px; height: 30px;
-    font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-    font-family: 'VT323', monospace;
-  }
-  .rep-count { font-family: 'VT323', monospace; font-size: 28px; color: var(--green); min-width: 28px; text-align: center; }
-
-  /* Interval running */
-  .interval-running {
-    background: var(--lcd);
-    border: 3px solid var(--border);
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
-    padding: 24px 16px; text-align: center; margin-bottom: 16px;
-  }
-  .interval-phase {
-    font-family: 'VT323', monospace;
-    font-size: 36px; letter-spacing: 4px; margin-bottom: 4px;
-  }
-  .interval-phase.work { color: var(--amber); text-shadow: 0 0 10px rgba(255,184,0,0.5); }
-  .interval-phase.rest { color: var(--green); text-shadow: 0 0 10px rgba(57,255,110,0.5); }
-  .interval-countdown {
-    font-family: 'VT323', monospace;
-    font-size: 100px; line-height: 1; margin-bottom: 8px; letter-spacing: 4px;
-  }
-  .interval-countdown.work { color: var(--amber); text-shadow: 0 0 15px rgba(255,184,0,0.6); }
-  .interval-countdown.rest { color: var(--green); text-shadow: 0 0 15px rgba(57,255,110,0.6); }
-  .interval-progress-bar {
-    height: 4px; background: var(--green-dark); margin: 10px 0; overflow: hidden;
-  }
-  .interval-progress-fill { height: 100%; transition: width 0.5s linear; }
-  .interval-progress-fill.work { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
-  .interval-progress-fill.rest { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .interval-series-info { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
-
-  /* BUTTONS full */
-  .btn-full {
-    width: 100%; padding: 16px;
-    background: var(--green-dark); color: var(--green);
-    border: 2px solid var(--green);
-    font-family: 'VT323', monospace;
-    font-size: 22px; letter-spacing: 3px; text-transform: uppercase;
-    cursor: pointer; transition: all 0.1s; margin-top: 8px;
-    box-shadow: 0 0 10px rgba(57,255,110,0.2);
-  }
-  .btn-full:active { background: var(--green); color: #000; }
-  .btn-full.danger { background: rgba(255,48,48,0.1); color: var(--red); border-color: var(--red); box-shadow: 0 0 10px rgba(255,48,48,0.2); }
-  .btn-full.danger:active { background: var(--red); color: #000; }
-  .btn-full.secondary { background: var(--lcd); color: var(--muted); border-color: var(--border); box-shadow: none; }
-
-  /* HISTORY */
-  .history-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
-  .history-empty .big { font-size: 48px; margin-bottom: 12px; }
-
-  .history-item {
-    background: var(--lcd);
-    border: 1px solid var(--border);
-    padding: 14px 16px; margin-bottom: 8px;
-    display: flex; align-items: center; gap: 14px;
-  }
-  .history-icon { font-size: 24px; }
-  .history-info { flex: 1; }
-  .history-activity { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: var(--green); }
-  .history-date { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; }
-  .history-stats { display: flex; gap: 14px; margin-top: 6px; flex-wrap: wrap; }
-  .h-stat { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-  .h-stat strong { color: var(--green); font-family: 'VT323', monospace; font-size: 16px; }
-
-  /* MODAL */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.9);
-    display: none; align-items: flex-end; z-index: 200;
-  }
-  .modal-overlay.show { display: flex; }
-  .modal {
-    background: var(--bg);
-    border: 3px solid var(--green);
-    border-bottom: none;
-    box-shadow: 0 0 30px rgba(57,255,110,0.2);
-    padding: 24px 20px 40px; width: 100%;
-  }
-  .modal-title {
-    font-family: 'VT323', monospace;
-    font-size: 36px; letter-spacing: 3px;
-    color: var(--green); text-shadow: 0 0 10px var(--green);
-    margin-bottom: 4px;
-  }
-  .modal-grid {
-    display: grid; grid-template-columns: repeat(2, 1fr);
-    gap: 10px; margin: 16px 0;
-  }
-  .modal-stat {
-    background: var(--lcd); border: 1px solid var(--border); padding: 12px;
-  }
-  .modal-stat-value { font-family: 'VT323', monospace; font-size: 32px; color: var(--green); }
-  .modal-stat-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
-
-  /* TOAST */
-  .toast {
-    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-    background: var(--lcd); border: 2px solid var(--green);
-    padding: 8px 18px; font-size: 12px; z-index: 300;
-    opacity: 0; transition: opacity 0.3s; white-space: nowrap;
-    text-transform: uppercase; letter-spacing: 2px;
-    color: var(--green); box-shadow: 0 0 15px rgba(57,255,110,0.3);
-  }
-  .toast.show { opacity: 1; }
-
-  /* Divider */
-  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+/* ANALYSIS MODAL */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.95);
+  display:none; z-index:200; overflow-y:auto;
+}
+.modal-overlay.show { display:block; }
+.modal {
+  background:var(--bg); border:3px solid var(--green); border-bottom:none;
+  padding:24px 20px 60px; margin-top:32px;
+}
+.modal-title { font-family:'VT323',monospace; font-size:40px; letter-spacing:3px; color:var(--green); text-shadow:0 0 10px var(--green); margin-bottom:4px; }
+.modal-subtitle { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; margin-bottom:20px; }
+.modal-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:16px 0; }
+.modal-stat { background:var(--lcd); border:1px solid var(--border); padding:12px; }
+.modal-stat-value { font-family:'VT323',monospace; font-size:30px; color:var(--green); line-height:1.1; }
+.modal-stat-label { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:3px; }
+.modal-stat.hi-amber .modal-stat-value { color:var(--amber); }
+.modal-stat.hi-blue .modal-stat-value { color:var(--blue); }
+.chart-box {
+  background:var(--lcd); border:1px solid var(--border);
+  padding:12px; margin:16px 0;
+}
+.chart-title { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; margin-bottom:10px; }
+canvas { width:100% !important; display:block; }
+.splits-table { width:100%; border-collapse:collapse; margin:4px 0; }
+.splits-table th { font-size:8px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; padding:4px 6px; text-align:left; border-bottom:1px solid var(--border); }
+.splits-table td { font-family:'VT323',monospace; font-size:18px; padding:5px 6px; border-bottom:1px solid var(--green-dark); color:var(--green); }
+.splits-table td:first-child { color:var(--muted); font-size:14px; }
+.splits-table tr.best td { color:var(--green); text-shadow:0 0 6px var(--green); }
+.splits-table tr.worst td { color:var(--red); }
+.zone-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.zone-label { font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); width:72px; flex-shrink:0; }
+.zone-bar-bg { flex:1; height:12px; background:var(--green-dark); }
+.zone-bar-fill { height:100%; }
+.zone-pct { font-family:'VT323',monospace; font-size:18px; width:36px; text-align:right; flex-shrink:0; }
+.toast {
+  position:fixed; top:20px; left:50%; transform:translateX(-50%);
+  background:var(--lcd); border:2px solid var(--green);
+  padding:8px 18px; font-size:12px; z-index:300;
+  opacity:0; transition:opacity 0.3s; white-space:nowrap;
+  text-transform:uppercase; letter-spacing:2px; color:var(--green);
+}
+.toast.show { opacity:1; }
 </style>
 </head>
 <body>
-
-<!-- PAGES -->
 
 <!-- PAGE: TRACKER -->
 <div class="page active" id="page-tracker">
   <div class="page-title">TRACKFLOW</div>
   <div class="page-subtitle">Registrá tu actividad</div>
-
   <div class="activity-grid">
     <div class="activity-card selected" data-activity="caminar" onclick="selectActivity(this)">
-      <div class="icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28">
-          <circle cx="12" cy="4" r="2"/><path d="M10 8l-2 5h4l2 5"/><path d="M8 13l-2 4"/><path d="M14 13l2 4"/>
-        </svg>
-      </div>
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" width="26" height="26"><circle cx="12" cy="4" r="2"/><path d="M10 8l-2 5h4l2 5"/><path d="M8 13l-2 4"/><path d="M14 13l2 4"/></svg></div>
       <div class="label">Caminar</div>
     </div>
     <div class="activity-card" data-activity="correr" onclick="selectActivity(this)">
-      <div class="icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28">
-          <circle cx="13" cy="3" r="2"/><path d="M7 17l2-5 3 3 2-4 1 2h3"/><path d="M9 12l-2 5"/><path d="M15 11l2 6"/>
-        </svg>
-      </div>
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" width="26" height="26"><circle cx="13" cy="3" r="2"/><path d="M7 17l2-5 3 3 2-4 1 2h3"/><path d="M9 12l-2 5"/><path d="M15 11l2 6"/></svg></div>
       <div class="label">Correr</div>
     </div>
     <div class="activity-card" data-activity="bici" onclick="selectActivity(this)">
-      <div class="icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28">
-          <circle cx="6" cy="15" r="4"/><circle cx="18" cy="15" r="4"/><path d="M6 15l4-8h4l2 4-6 4"/><circle cx="14" cy="5" r="1"/>
-        </svg>
-      </div>
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" width="26" height="26"><circle cx="6" cy="15" r="4"/><circle cx="18" cy="15" r="4"/><path d="M6 15l4-8h4l2 4-6 4"/><circle cx="14" cy="5" r="1"/></svg></div>
       <div class="label">Bici</div>
     </div>
   </div>
-
-  <div style="text-align:center; margin-bottom:12px;">
+  <div style="text-align:center;margin-bottom:12px;">
     <div class="gps-badge">
       <div class="gps-dot" id="gps-dot"></div>
       <span id="gps-status">GPS desactivado</span>
     </div>
   </div>
-
   <div class="lcd-screen">
     <div class="main-time" id="main-time">00:00:00</div>
     <div class="stats-row">
-      <div class="stat">
-        <div class="stat-value" id="stat-km">0.00</div>
-        <div class="stat-label">km</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value" id="stat-pace">--:--</div>
-        <div class="stat-label">min/km</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value" id="stat-speed">0.0</div>
-        <div class="stat-label">km/h</div>
-      </div>
+      <div class="stat"><div class="stat-value" id="stat-km">0.00</div><div class="stat-label">km</div></div>
+      <div class="stat"><div class="stat-value" id="stat-pace">--:--</div><div class="stat-label">min/km</div></div>
+      <div class="stat"><div class="stat-value" id="stat-speed">0.0</div><div class="stat-label">km/h</div></div>
     </div>
   </div>
-
   <div class="controls">
     <button class="btn-main btn-stop" id="btn-stop" onclick="stopActivity()" style="display:none">
       <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><rect x="4" y="4" width="16" height="16"/></svg>
     </button>
     <button class="btn-main btn-play" id="btn-playpause" onclick="toggleActivity()">
-      <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><polygon points="5,3 19,12 5,21"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><polygon points="5,3 19,12 5,21"/></svg>
     </button>
   </div>
 </div>
@@ -422,89 +263,61 @@
 <div class="page" id="page-intervals">
   <div class="page-title">SERIES</div>
   <div class="page-subtitle">Entrenamiento por intervalos</div>
-
-  <!-- Running display (hidden by default) -->
   <div id="interval-running-display" style="display:none">
     <div class="interval-running">
       <div class="interval-phase" id="iv-phase">TRABAJO</div>
-      <div class="interval-countdown" id="iv-countdown">00</div>
-      <div class="interval-progress-bar">
-        <div class="interval-progress-fill work" id="iv-progress"></div>
-      </div>
+      <div class="interval-countdown" id="iv-countdown">00:00</div>
+      <div class="interval-progress-bar"><div class="interval-progress-fill work" id="iv-progress"></div></div>
       <div class="interval-series-info" id="iv-info">Serie 1 de 4</div>
     </div>
     <button class="btn-full danger" onclick="stopIntervals()">DETENER SERIES</button>
   </div>
-
-  <!-- Config display -->
   <div id="interval-config-display">
-    <!-- Work interval -->
     <div class="section-label">Intervalo de trabajo</div>
     <div class="interval-builder">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <span class="interval-name" style="color:var(--amber)">[ ESFUERZO ]</span>
-      </div>
+      <div style="margin-bottom:12px"><span class="interval-name" style="color:var(--amber)">[ ESFUERZO ]</span></div>
       <div class="time-picker">
-        <div class="time-unit">
-          <div class="time-display" id="work-min">04</div>
-          <div class="time-unit-label">min</div>
-        </div>
+        <div class="time-unit"><div class="time-display" id="work-min">04</div><div class="time-unit-label">min</div></div>
         <div class="time-sep">:</div>
-        <div class="time-unit">
-          <div class="time-display" id="work-sec">00</div>
-          <div class="time-unit-label">seg</div>
-        </div>
+        <div class="time-unit"><div class="time-display" id="work-sec">00</div><div class="time-unit-label">seg</div></div>
         <div class="time-btns">
           <button class="t-btn" onclick="adjustTime('work','min',1)">+</button>
-          <button class="t-btn" onclick="adjustTime('work','min',-1)">−</button>
+          <button class="t-btn" onclick="adjustTime('work','min',-1)">-</button>
         </div>
         <div class="time-btns">
           <button class="t-btn" onclick="adjustTime('work','sec',15)">+</button>
-          <button class="t-btn" onclick="adjustTime('work','sec',-15)">−</button>
+          <button class="t-btn" onclick="adjustTime('work','sec',-15)">-</button>
         </div>
       </div>
     </div>
-
-    <!-- Rest interval -->
     <div class="section-label">Intervalo de descanso</div>
     <div class="interval-builder">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <span class="interval-name" style="color:var(--green)">[ DESCANSO ]</span>
-      </div>
+      <div style="margin-bottom:12px"><span class="interval-name" style="color:var(--green)">[ DESCANSO ]</span></div>
       <div class="time-picker">
-        <div class="time-unit">
-          <div class="time-display" id="rest-min">00</div>
-          <div class="time-unit-label">min</div>
-        </div>
+        <div class="time-unit"><div class="time-display" id="rest-min">00</div><div class="time-unit-label">min</div></div>
         <div class="time-sep">:</div>
-        <div class="time-unit">
-          <div class="time-display" id="rest-sec">30</div>
-          <div class="time-unit-label">seg</div>
-        </div>
+        <div class="time-unit"><div class="time-display" id="rest-sec">30</div><div class="time-unit-label">seg</div></div>
         <div class="time-btns">
           <button class="t-btn" onclick="adjustTime('rest','min',1)">+</button>
-          <button class="t-btn" onclick="adjustTime('rest','min',-1)">−</button>
+          <button class="t-btn" onclick="adjustTime('rest','min',-1)">-</button>
         </div>
         <div class="time-btns">
           <button class="t-btn" onclick="adjustTime('rest','sec',15)">+</button>
-          <button class="t-btn" onclick="adjustTime('rest','sec',-15)">−</button>
+          <button class="t-btn" onclick="adjustTime('rest','sec',-15)">-</button>
         </div>
       </div>
     </div>
-
-    <!-- Repeats -->
     <div class="section-label">Repeticiones</div>
     <div class="interval-builder">
       <div class="repeats-row">
-        <span class="repeats-label">Número de series</span>
+        <span class="repeats-label">Series</span>
         <div class="repeats-control">
-          <button class="rep-btn" onclick="adjustRepeats(-1)">−</button>
+          <button class="rep-btn" onclick="adjustRepeats(-1)">-</button>
           <span class="rep-count" id="repeats-display">4</span>
           <button class="rep-btn" onclick="adjustRepeats(1)">+</button>
         </div>
       </div>
     </div>
-
     <button class="btn-full" onclick="startIntervals()">INICIAR SERIES</button>
   </div>
 </div>
@@ -513,12 +326,7 @@
 <div class="page" id="page-history">
   <div class="page-title">HISTORIAL</div>
   <div class="page-subtitle">Tus actividades registradas</div>
-  <div id="history-list">
-    <div class="history-empty">
-      <div class="big" style="font-family:'VT323',monospace;font-size:60px;color:var(--muted)">[ -- ]</div>
-      <div>Todavía no hay actividades.<br>A moverse.</div>
-    </div>
-  </div>
+  <div id="history-list"></div>
 </div>
 
 <!-- NAV -->
@@ -537,481 +345,457 @@
   </button>
 </nav>
 
-<!-- Summary Modal -->
-<div class="modal-overlay" id="summary-modal">
+<!-- ANALYSIS MODAL -->
+<div class="modal-overlay" id="analysis-modal">
   <div class="modal">
-    <div class="modal-title">¡ACTIVIDAD COMPLETADA!</div>
-    <div style="color:var(--muted);font-size:13px" id="summary-activity-label">Caminata</div>
+    <div class="modal-title" id="an-title">ANALISIS</div>
+    <div class="modal-subtitle" id="an-subtitle">--</div>
     <div class="modal-grid">
-      <div class="modal-stat">
-        <div class="modal-stat-value" id="s-time">00:00:00</div>
-        <div class="modal-stat-label">Tiempo</div>
-      </div>
-      <div class="modal-stat">
-        <div class="modal-stat-value" id="s-km">0.00 km</div>
-        <div class="modal-stat-label">Distancia</div>
-      </div>
-      <div class="modal-stat">
-        <div class="modal-stat-value" id="s-pace">--:--</div>
-        <div class="modal-stat-label">Ritmo medio</div>
-      </div>
-      <div class="modal-stat">
-        <div class="modal-stat-value" id="s-speed">0.0</div>
-        <div class="modal-stat-label">Vel. media km/h</div>
-      </div>
+      <div class="modal-stat"><div class="modal-stat-value" id="an-time">--</div><div class="modal-stat-label">Tiempo total</div></div>
+      <div class="modal-stat"><div class="modal-stat-value" id="an-km">--</div><div class="modal-stat-label">Distancia</div></div>
+      <div class="modal-stat hi-amber"><div class="modal-stat-value" id="an-speed-max">--</div><div class="modal-stat-label">Vel. maxima</div></div>
+      <div class="modal-stat"><div class="modal-stat-value" id="an-speed-avg">--</div><div class="modal-stat-label">Vel. promedio</div></div>
+      <div class="modal-stat hi-blue"><div class="modal-stat-value" id="an-pace-best">--</div><div class="modal-stat-label">Mejor km</div></div>
+      <div class="modal-stat"><div class="modal-stat-value" id="an-pace-avg">--</div><div class="modal-stat-label">Ritmo medio</div></div>
     </div>
-    <button class="btn-full" onclick="saveActivity()">GUARDAR</button>
-    <button class="btn-full secondary" style="margin-top:8px" onclick="discardActivity()">DESCARTAR</button>
+    <div class="chart-box">
+      <div class="chart-title">Velocidad en el tiempo (km/h)</div>
+      <canvas id="speed-chart" height="120"></canvas>
+    </div>
+    <div class="section-label" style="margin-top:16px">Splits por kilometro</div>
+    <div class="chart-box" style="padding:8px">
+      <table class="splits-table">
+        <thead><tr><th>KM</th><th>Ritmo</th><th>Vel.</th><th>Tiempo</th></tr></thead>
+        <tbody id="splits-body"></tbody>
+      </table>
+    </div>
+    <div class="section-label" style="margin-top:16px">Zonas de intensidad</div>
+    <div class="chart-box" id="zones-container"></div>
+    <div id="analysis-actions">
+      <button class="btn-full" id="btn-save-activity" onclick="saveActivity()">GUARDAR ACTIVIDAD</button>
+      <button class="btn-full secondary" id="btn-discard-activity" onclick="discardActivity()" style="margin-top:8px">DESCARTAR</button>
+      <button class="btn-full secondary" id="btn-close-analysis" onclick="closeAnalysis()" style="display:none;margin-top:8px">CERRAR</button>
+    </div>
   </div>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ---- STATE ----
-let currentPage = 'tracker';
-let selectedActivity = 'caminar';
-let isRunning = false;
-let isPaused = false;
-let startTime = null;
-let pausedTime = 0;
-let timerInterval = null;
-let watchId = null;
-let lastPos = null;
-let totalDistance = 0;
-let currentSpeed = 0;
-let history = JSON.parse(localStorage.getItem('tf_history') || '[]');
-
-// Interval state
-let ivWorkMin = 4, ivWorkSec = 0;
-let ivRestMin = 0, ivRestSec = 30;
-let ivRepeats = 4;
-let ivRunning = false;
-let ivCurrentSerie = 1;
-let ivPhase = 'work'; // 'work' | 'rest'
-let ivTimeLeft = 0;
-let ivInterval = null;
-
-// ---- NAVIGATION ----
-function showPage(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
-  document.getElementById('nav-' + page).classList.add('active');
-  currentPage = page;
-  if (page === 'history') renderHistory();
-}
-
-// ---- ACTIVITY SELECTOR ----
-function selectActivity(card) {
-  if (isRunning) return;
-  document.querySelectorAll('.activity-card').forEach(c => c.classList.remove('selected'));
-  card.classList.add('selected');
-  selectedActivity = card.dataset.activity;
-}
-
-// ---- TIMER ----
-function toggleActivity() {
-  if (!isRunning && !isPaused) {
-    startActivity();
-  } else if (isRunning) {
-    pauseActivity();
-  } else if (isPaused) {
-    resumeActivity();
-  }
-}
-
-const SVG_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><polygon points="5,3 19,12 5,21"/></svg>';
+const SVG_PLAY  = '<svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><polygon points="5,3 19,12 5,21"/></svg>';
 const SVG_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
 
+// STATE
+let currentPage='tracker', selectedActivity='caminar';
+let isRunning=false, isPaused=false, startTime=null, pausedTime=0;
+let timerInterval=null, watchId=null, lastPos=null;
+let totalDistance=0, currentSpeed=0;
+let trackPoints=[], kmSplits=[], kmDistAcc=0, kmSpeedAcc=[], kmStartTime=null;
+let history=[], pendingSummary=null;
+try { history=JSON.parse(localStorage.getItem('tf_history')||'[]'); } catch(e){ history=[]; }
+let ivWorkMin=4,ivWorkSec=0,ivRestMin=0,ivRestSec=30,ivRepeats=4;
+let ivRunning=false,ivCurrentSerie=1,ivPhase='work',ivTimeLeft=0,ivInterval=null;
+
+// NAV
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('nav-'+p).classList.add('active');
+  currentPage=p;
+  if(p==='history') renderHistory();
+}
+
+function selectActivity(card) {
+  if(isRunning) return;
+  document.querySelectorAll('.activity-card').forEach(c=>c.classList.remove('selected'));
+  card.classList.add('selected');
+  selectedActivity=card.dataset.activity;
+}
+
+// TIMER
+function toggleActivity() {
+  if(!isRunning&&!isPaused) startActivity();
+  else if(isRunning) pauseActivity();
+  else resumeActivity();
+}
+
 function startActivity() {
-  isRunning = true; isPaused = false;
-  startTime = Date.now();
-  totalDistance = 0; currentSpeed = 0; lastPos = null;
-  document.getElementById('btn-stop').style.display = 'flex';
-  document.getElementById('btn-playpause').innerHTML = SVG_PAUSE;
+  isRunning=true; isPaused=false; startTime=Date.now();
+  totalDistance=0; currentSpeed=0; lastPos=null;
+  trackPoints=[]; kmSplits=[]; kmDistAcc=0; kmSpeedAcc=[]; kmStartTime=Date.now();
+  document.getElementById('btn-stop').style.display='flex';
+  document.getElementById('btn-playpause').innerHTML=SVG_PAUSE;
   document.getElementById('main-time').classList.add('running');
   startGPS();
-  timerInterval = setInterval(updateTimer, 100);
-  document.querySelectorAll('.activity-card').forEach(c => c.style.pointerEvents = 'none');
+  timerInterval=setInterval(updateTimer,500);
+  document.querySelectorAll('.activity-card').forEach(c=>c.style.pointerEvents='none');
 }
 
 function pauseActivity() {
-  isRunning = false; isPaused = true;
-  pausedTime += Date.now() - startTime;
-  clearInterval(timerInterval);
-  stopGPS();
-  document.getElementById('btn-playpause').innerHTML = SVG_PLAY;
+  isRunning=false; isPaused=true;
+  pausedTime+=Date.now()-startTime;
+  clearInterval(timerInterval); stopGPS();
+  document.getElementById('btn-playpause').innerHTML=SVG_PLAY;
   document.getElementById('main-time').classList.remove('running');
 }
 
 function resumeActivity() {
-  isRunning = true; isPaused = false;
-  startTime = Date.now();
-  document.getElementById('btn-playpause').innerHTML = SVG_PAUSE;
+  isRunning=true; isPaused=false; startTime=Date.now();
+  document.getElementById('btn-playpause').innerHTML=SVG_PAUSE;
   document.getElementById('main-time').classList.add('running');
-  startGPS();
-  timerInterval = setInterval(updateTimer, 100);
+  startGPS(); timerInterval=setInterval(updateTimer,500);
 }
 
 function stopActivity() {
-  if (!isRunning && !isPaused) return;
-  clearInterval(timerInterval);
-  stopGPS();
-  isRunning = false; isPaused = false;
-
-  const elapsed = pausedTime + (startTime ? Date.now() - startTime : 0);
-  const secs = Math.floor(elapsed / 1000);
-  showSummary(secs, totalDistance);
-
+  if(!isRunning&&!isPaused) return;
+  clearInterval(timerInterval); stopGPS();
+  isRunning=false; isPaused=false;
+  const elapsed=pausedTime+(startTime?Date.now()-startTime:0);
+  const secs=Math.floor(elapsed/1000);
+  pendingSummary={ secs, km:totalDistance, activity:selectedActivity,
+    trackPoints:[...trackPoints], kmSplits:[...kmSplits] };
   document.getElementById('main-time').classList.remove('running');
-  document.getElementById('btn-playpause').innerHTML = SVG_PLAY;
-  document.getElementById('btn-stop').style.display = 'none';
-  document.querySelectorAll('.activity-card').forEach(c => c.style.pointerEvents = '');
-  pausedTime = 0; startTime = null;
+  document.getElementById('btn-playpause').innerHTML=SVG_PLAY;
+  document.getElementById('btn-stop').style.display='none';
+  document.querySelectorAll('.activity-card').forEach(c=>c.style.pointerEvents='');
+  pausedTime=0; startTime=null;
+  document.getElementById('stat-km').textContent='0.00';
+  document.getElementById('stat-pace').textContent='--:--';
+  document.getElementById('stat-speed').textContent='0.0';
+  document.getElementById('main-time').textContent='00:00:00';
+  showAnalysis(pendingSummary, true);
 }
 
 function updateTimer() {
-  const elapsed = pausedTime + (Date.now() - startTime);
-  document.getElementById('main-time').textContent = formatTime(Math.floor(elapsed / 1000));
-  // Update pace
-  if (totalDistance > 0) {
-    const secs = elapsed / 1000;
-    const paceSecPerKm = secs / totalDistance;
-    document.getElementById('stat-pace').textContent = formatPace(paceSecPerKm);
-  }
+  const elapsed=pausedTime+(Date.now()-startTime);
+  document.getElementById('main-time').textContent=formatTime(Math.floor(elapsed/1000));
+  if(totalDistance>0) document.getElementById('stat-pace').textContent=formatPace((elapsed/1000)/totalDistance);
+  // Sample speed every ~5s
+  const now=Date.now();
+  if(trackPoints.length===0||(now-trackPoints[trackPoints.length-1].t)>4500)
+    trackPoints.push({speed:currentSpeed, dist:totalDistance, t:now});
 }
 
-// ---- GPS ----
+// GPS
 function startGPS() {
-  if (!navigator.geolocation) {
-    setGpsStatus(false, 'GPS no disponible');
-    return;
-  }
-  setGpsStatus(false, 'Buscando GPS...');
-  watchId = navigator.geolocation.watchPosition(
-    onGPSUpdate,
-    onGPSError,
-    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
-  );
+  if(!navigator.geolocation){setGpsStatus(false,'GPS no disponible');return;}
+  setGpsStatus(false,'Buscando GPS...');
+  watchId=navigator.geolocation.watchPosition(onGPSUpdate,onGPSError,
+    {enableHighAccuracy:true,maximumAge:1000,timeout:15000});
 }
-
 function stopGPS() {
-  if (watchId !== null) {
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-  }
-  setGpsStatus(false, 'GPS desactivado');
+  if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+  setGpsStatus(false,'GPS desactivado');
 }
-
 function onGPSUpdate(pos) {
-  setGpsStatus(true, 'GPS activo');
-  const { latitude, longitude, speed, accuracy } = pos.coords;
-
-  // Solo descartar lecturas muy malas (>100m) en teléfonos viejos el GPS puede dar 40-80m fácil
-  if (accuracy > 100) return;
-
-  if (lastPos) {
-    const dist = haversine(lastPos.lat, lastPos.lng, latitude, longitude);
-    const timeDiff = (Date.now() - lastPos.time) / 1000; // segundos
-
-    // Velocidad implícita de esta lectura
-    const impliedSpeed = timeDiff > 0 ? (dist * 1000) / timeDiff : 0; // m/s
-
-    // Descartar si implica velocidad imposible (>15 m/s = 54 km/h caminando/corriendo)
-    // o si es drift de GPS parado (< 2 metros)
-    if (impliedSpeed > 15) return;   // salto imposible
-    if (dist < 0.002) return;        // menos de 2 metros, probablemente drift parado
-
-    totalDistance += dist;
-    document.getElementById('stat-km').textContent = totalDistance.toFixed(2);
-
-    // Calcular velocidad real basada en distancia y tiempo
-    if (timeDiff > 0) {
-      currentSpeed = (dist / timeDiff) * 3600; // km/h
+  setGpsStatus(true,'GPS activo');
+  const {latitude,longitude,speed,accuracy}=pos.coords;
+  if(accuracy>100) return;
+  if(lastPos) {
+    const dist=haversine(lastPos.lat,lastPos.lng,latitude,longitude);
+    const timeDiff=(Date.now()-lastPos.time)/1000;
+    if(timeDiff<=0) return;
+    const impliedMs=(dist*1000)/timeDiff;
+    if(impliedMs>15||dist<0.002) return;
+    totalDistance+=dist;
+    kmDistAcc+=dist;
+    document.getElementById('stat-km').textContent=totalDistance.toFixed(2);
+    const spd=(dist/timeDiff)*3600;
+    currentSpeed=spd;
+    kmSpeedAcc.push(spd);
+    if(kmDistAcc>=1.0) {
+      const splitSecs=(Date.now()-kmStartTime)/1000;
+      const avg=kmSpeedAcc.reduce((a,b)=>a+b,0)/kmSpeedAcc.length;
+      kmSplits.push({km:kmSplits.length+1,secs:splitSecs,avgSpeed:avg});
+      kmDistAcc=0; kmSpeedAcc=[]; kmStartTime=Date.now();
     }
   }
+  lastPos={lat:latitude,lng:longitude,time:Date.now()};
+  if(speed!==null&&speed>=0&&speed<15) currentSpeed=speed*3.6;
+  document.getElementById('stat-speed').textContent=currentSpeed.toFixed(1);
+}
+function onGPSError(){setGpsStatus(false,'Error GPS');}
+function setGpsStatus(active,text){
+  document.getElementById('gps-dot').className='gps-dot'+(active?' active':'');
+  document.getElementById('gps-status').textContent=text;
+}
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
 
-  lastPos = { lat: latitude, lng: longitude, time: Date.now() };
-
-  // Usar speed del GPS si está disponible y es coherente
-  if (speed !== null && speed >= 0 && speed < 15) {
-    currentSpeed = speed * 3.6;
+// ANALYSIS
+function showAnalysis(data, canSave) {
+  const labels={caminar:'Caminata',correr:'Carrera',bici:'Ciclismo'};
+  const dateObj = data.date ? new Date(data.date) : new Date();
+  document.getElementById('an-title').textContent=(labels[data.activity]||'Actividad').toUpperCase();
+  document.getElementById('an-subtitle').textContent=
+    dateObj.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'})+
+    ' — '+dateObj.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('an-time').textContent=formatTime(data.secs);
+  document.getElementById('an-km').textContent=data.km.toFixed(2)+' km';
+  const speeds=(data.trackPoints||[]).map(p=>p.speed).filter(s=>s>0);
+  const maxSpd=speeds.length?Math.max(...speeds):0;
+  const avgSpd=speeds.length?speeds.reduce((a,b)=>a+b,0)/speeds.length:(data.km>0&&data.secs>0?(data.km/data.secs)*3600:0);
+  document.getElementById('an-speed-max').textContent=maxSpd.toFixed(1)+' km/h';
+  document.getElementById('an-speed-avg').textContent=avgSpd.toFixed(1)+' km/h';
+  const avgPace=data.km>0?formatPace(data.secs/data.km):'--:--';
+  document.getElementById('an-pace-avg').textContent=avgPace+' /km';
+  const splits=data.kmSplits||[];
+  if(splits.length>0){
+    const best=splits.reduce((a,b)=>a.secs<b.secs?a:b);
+    document.getElementById('an-pace-best').textContent=formatPace(best.secs)+' /km';
+  } else {
+    document.getElementById('an-pace-best').textContent=avgPace+' /km';
   }
-
-  document.getElementById('stat-speed').textContent = currentSpeed.toFixed(1);
-  autoDetectActivity(currentSpeed);
+  drawSpeedChart(data.trackPoints||[], data.secs);
+  renderSplits(splits);
+  renderZones(data.trackPoints||[], data.activity);
+  // buttons
+  const saveBtn=document.getElementById('btn-save-activity');
+  const discardBtn=document.getElementById('btn-discard-activity');
+  const closeBtn=document.getElementById('btn-close-analysis');
+  saveBtn.style.display=canSave?'block':'none';
+  discardBtn.style.display=canSave?'block':'none';
+  closeBtn.style.display=canSave?'none':'block';
+  document.getElementById('analysis-modal').classList.add('show');
+  document.getElementById('analysis-modal').scrollTop=0;
 }
 
-function onGPSError(err) {
-  setGpsStatus(false, 'Error GPS');
+function drawSpeedChart(points, totalSecs) {
+  const canvas=document.getElementById('speed-chart');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.parentElement.clientWidth-24;
+  const H=120;
+  canvas.width=W; canvas.height=H;
+  ctx.clearRect(0,0,W,H);
+  if(points.length<2){
+    ctx.fillStyle='#1f6635'; ctx.font='12px Share Tech Mono'; ctx.textAlign='center';
+    ctx.fillText('Pocos datos para graficar',W/2,H/2); return;
+  }
+  const speeds=points.map(p=>p.speed);
+  const maxS=Math.max(...speeds,1);
+  const pad={top:10,bottom:22,left:30,right:8};
+  const cW=W-pad.left-pad.right, cH=H-pad.top-pad.bottom;
+  // grid
+  for(let i=0;i<=4;i++){
+    const y=pad.top+(cH/4)*i;
+    ctx.strokeStyle='#0d3318'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.left,y); ctx.lineTo(W-pad.right,y); ctx.stroke();
+    ctx.fillStyle='#1f6635'; ctx.font='9px Share Tech Mono'; ctx.textAlign='right';
+    ctx.fillText((maxS*(1-i/4)).toFixed(0),pad.left-4,y+3);
+  }
+  // area
+  ctx.beginPath();
+  points.forEach((p,i)=>{
+    const x=pad.left+(i/(points.length-1))*cW;
+    const y=pad.top+cH-(p.speed/maxS)*cH;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.lineTo(pad.left+cW,pad.top+cH); ctx.lineTo(pad.left,pad.top+cH); ctx.closePath();
+  const grad=ctx.createLinearGradient(0,pad.top,0,pad.top+cH);
+  grad.addColorStop(0,'rgba(57,255,110,0.35)'); grad.addColorStop(1,'rgba(57,255,110,0.02)');
+  ctx.fillStyle=grad; ctx.fill();
+  // line
+  ctx.beginPath(); ctx.strokeStyle='#39ff6e'; ctx.lineWidth=2;
+  points.forEach((p,i)=>{
+    const x=pad.left+(i/(points.length-1))*cW;
+    const y=pad.top+cH-(p.speed/maxS)*cH;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  // x labels
+  ctx.fillStyle='#1f6635'; ctx.font='9px Share Tech Mono'; ctx.textAlign='center';
+  [0,0.25,0.5,0.75,1].forEach(f=>{
+    ctx.fillText(formatTime(Math.floor(f*totalSecs)).slice(3),pad.left+f*cW,H-5);
+  });
 }
 
-function setGpsStatus(active, text) {
-  document.getElementById('gps-dot').className = 'gps-dot' + (active ? ' active' : '');
-  document.getElementById('gps-status').textContent = text;
+function renderSplits(splits) {
+  const tbody=document.getElementById('splits-body');
+  if(splits.length===0){
+    tbody.innerHTML='<tr><td colspan="4" style="color:var(--muted);font-size:13px;padding:10px 6px">Sin datos de splits</td></tr>'; return;
+  }
+  const bestIdx=splits.indexOf(splits.reduce((a,b)=>a.secs<b.secs?a:b));
+  const worstIdx=splits.length>1?splits.indexOf(splits.reduce((a,b)=>a.secs>b.secs?a:b)):-1;
+  tbody.innerHTML=splits.map((s,i)=>`
+    <tr class="${i===bestIdx?'best':(i===worstIdx?'worst':'')}">
+      <td>KM ${s.km}</td>
+      <td>${formatPace(s.secs)} /km</td>
+      <td>${s.avgSpeed.toFixed(1)}</td>
+      <td>${formatTime(Math.round(s.secs))}</td>
+    </tr>`).join('');
 }
 
-function autoDetectActivity(kmh) {
-  if (!isRunning) return;
-  let detected = 'caminar';
-  if (kmh > 6 && kmh < 25) detected = 'correr';
-  else if (kmh >= 25) detected = 'bici';
-  // Solo actualiza el label visual, no cambia selección manual
-}
-
-function haversine(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-// ---- SUMMARY ----
-let pendingSummary = null;
-
-function showSummary(secs, km) {
-  const icons = { caminar:'[~]', correr:'[>>]', bici:'[O-O]' };
-  const labels = { caminar:'Caminata', correr:'Carrera', bici:'Ciclismo' };
-  pendingSummary = { secs, km, activity: selectedActivity };
-
-  document.getElementById('s-time').textContent = formatTime(secs);
-  document.getElementById('s-km').textContent = km.toFixed(2) + ' km';
-  document.getElementById('summary-activity-label').textContent = icons[selectedActivity] + ' ' + labels[selectedActivity];
-  const paceStr = km > 0 ? formatPace(secs / km) : '--:--';
-  document.getElementById('s-pace').textContent = paceStr;
-  const speedStr = secs > 0 ? ((km / secs) * 3600).toFixed(1) : '0.0';
-  document.getElementById('s-speed').textContent = speedStr;
-
-  document.getElementById('summary-modal').classList.add('show');
-  document.getElementById('stat-km').textContent = '0.00';
-  document.getElementById('stat-pace').textContent = '--:--';
-  document.getElementById('stat-speed').textContent = '0.0';
-  document.getElementById('main-time').textContent = '00:00:00';
+function renderZones(points, activity) {
+  const zones = activity==='bici'
+    ? [{name:'Recuperacion',max:15,color:'#38bdf8'},{name:'Suave',max:22,color:'#39ff6e'},{name:'Moderado',max:30,color:'#ffb800'},{name:'Intenso',max:40,color:'#ff6b35'},{name:'Maximo',max:999,color:'#ff3030'}]
+    : [{name:'Caminata',max:6,color:'#38bdf8'},{name:'Trote',max:10,color:'#39ff6e'},{name:'Carrera',max:15,color:'#ffb800'},{name:'Rapido',max:20,color:'#ff6b35'},{name:'Maximo',max:999,color:'#ff3030'}];
+  const speeds=(points||[]).map(p=>p.speed).filter(s=>s>0);
+  if(speeds.length===0){
+    document.getElementById('zones-container').innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px">Sin datos de velocidad</div>'; return;
+  }
+  const counts=zones.map((z,i)=>speeds.filter(s=>s<=z.max&&(i===0||s>zones[i-1].max)).length);
+  const total=speeds.length;
+  document.getElementById('zones-container').innerHTML=zones.map((z,i)=>{
+    const pct=total>0?Math.round(counts[i]/total*100):0;
+    return `<div class="zone-row">
+      <div class="zone-label">${z.name}</div>
+      <div class="zone-bar-bg"><div class="zone-bar-fill" style="width:${pct}%;background:${z.color}"></div></div>
+      <div class="zone-pct" style="color:${z.color}">${pct}%</div>
+    </div>`;
+  }).join('');
 }
 
 function saveActivity() {
-  if (!pendingSummary) return;
-  history.unshift({ ...pendingSummary, date: new Date().toISOString() });
-  localStorage.setItem('tf_history', JSON.stringify(history));
-  document.getElementById('summary-modal').classList.remove('show');
+  if(!pendingSummary) return;
+  history.unshift({...pendingSummary, date:new Date().toISOString()});
+  try{localStorage.setItem('tf_history',JSON.stringify(history));}catch(e){}
+  document.getElementById('analysis-modal').classList.remove('show');
   showToast('OK - ACTIVIDAD GUARDADA');
-  pendingSummary = null;
+  pendingSummary=null;
 }
-
 function discardActivity() {
-  document.getElementById('summary-modal').classList.remove('show');
-  pendingSummary = null;
+  document.getElementById('analysis-modal').classList.remove('show');
+  pendingSummary=null;
+}
+function closeAnalysis() {
+  document.getElementById('analysis-modal').classList.remove('show');
 }
 
-// ---- HISTORY ----
+// HISTORY
 function renderHistory() {
-  const container = document.getElementById('history-list');
-  if (history.length === 0) {
-    container.innerHTML = `<div class="history-empty"><div class="big" style="font-family:'VT323',monospace;font-size:60px;color:var(--muted)">[ -- ]</div><div>Todavía no hay actividades.<br>A moverse.</div></div>`;
-    return;
+  const container=document.getElementById('history-list');
+  if(history.length===0){
+    container.innerHTML='<div class="history-empty"><div style="font-family:\'VT323\',monospace;font-size:60px;color:var(--muted)">[ -- ]</div><div style="color:var(--muted);margin-top:12px">Sin actividades aun. A moverse.</div></div>'; return;
   }
-  const icons = { caminar:'[~]', correr:'[>>]', bici:'[O-O]' };
-  const labels = { caminar:'Caminata', correr:'Carrera', bici:'Ciclismo' };
-  container.innerHTML = history.map(h => {
-    const d = new Date(h.date);
-    const dateStr = d.toLocaleDateString('es-AR', { day:'numeric', month:'short', year:'numeric' });
-    const timeStr = d.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
-    const paceStr = h.km > 0 ? formatPace(h.secs / h.km) : '--:--';
-    return `<div class="history-item">
-      <div class="history-icon">${icons[h.activity]}</div>
+  const icons={caminar:'[~]',correr:'[>>]',bici:'[O-O]'};
+  const labels={caminar:'Caminata',correr:'Carrera',bici:'Ciclismo'};
+  container.innerHTML=history.map((h,i)=>{
+    const d=new Date(h.date);
+    const dateStr=d.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'});
+    const timeStr=d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    const paceStr=h.km>0?formatPace(h.secs/h.km):'--:--';
+    const speeds=(h.trackPoints||[]).map(p=>p.speed).filter(s=>s>0);
+    const maxSpd=speeds.length?Math.max(...speeds).toFixed(1):'--';
+    return `<div class="history-item" onclick="openHistoryAnalysis(${i})">
+      <div class="history-icon">${icons[h.activity]||'[?]'}</div>
       <div class="history-info">
-        <div class="history-activity">${labels[h.activity]}</div>
-        <div class="history-date">${dateStr} a las ${timeStr}</div>
+        <div class="history-activity">${labels[h.activity]||h.activity}</div>
+        <div class="history-date">${dateStr} — ${timeStr}</div>
         <div class="history-stats">
           <div class="h-stat"><strong>${formatTime(h.secs)}</strong> tiempo</div>
           <div class="h-stat"><strong>${h.km.toFixed(2)}</strong> km</div>
-          <div class="h-stat"><strong>${paceStr}</strong> min/km</div>
+          <div class="h-stat"><strong>${paceStr}</strong> /km</div>
+          <div class="h-stat"><strong>${maxSpd}</strong> max</div>
         </div>
       </div>
     </div>`;
   }).join('');
 }
 
-// ---- AUDIO ----
-let audioCtx = null;
-
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
+function openHistoryAnalysis(idx) {
+  const h=history[idx]; if(!h) return;
+  pendingSummary=null;
+  showAnalysis(h, false);
 }
 
-function beep(frequency, duration, volume = 0.6, type = 'sine') {
-  try {
-    const ctx = getAudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = frequency;
-    osc.type = type;
-    gain.gain.setValueAtTime(volume, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + duration);
-  } catch(e) {}
+// AUDIO
+let audioCtx=null;
+function getAudioCtx(){ if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function beep(freq,dur,vol=0.6,type='sine'){
+  try{
+    const ctx=getAudioCtx(),osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value=freq; osc.type=type;
+    gain.gain.setValueAtTime(vol,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+dur);
+  }catch(e){}
 }
+function playWorkSound(){ beep(880,0.12,0.7); setTimeout(()=>beep(1100,0.2,0.7),150); }
+function playRestSound(){ beep(440,0.5,0.6); }
+function playFinishSound(){ beep(523,0.15,0.7); setTimeout(()=>beep(659,0.15,0.7),170); setTimeout(()=>beep(784,0.15,0.7),340); setTimeout(()=>beep(1047,0.4,0.7),510); }
+function playCountdownBeep(){ beep(660,0.08,0.4,'square'); }
+document.addEventListener('touchstart',()=>{try{getAudioCtx();}catch(e){}},{once:true});
 
-function playWorkSound() {
-  // Dos pitidos cortos agudos → ¡a correr!
-  beep(880, 0.12, 0.7);
-  setTimeout(() => beep(1100, 0.2, 0.7), 150);
-}
-
-function playRestSound() {
-  // Un pitido largo grave → a descansar
-  beep(440, 0.5, 0.6);
-}
-
-function playFinishSound() {
-  // Melodía corta de victoria
-  beep(523, 0.15, 0.7);
-  setTimeout(() => beep(659, 0.15, 0.7), 170);
-  setTimeout(() => beep(784, 0.15, 0.7), 340);
-  setTimeout(() => beep(1047, 0.4, 0.7), 510);
-}
-
-function playCountdownBeep() {
-  // Tick suave para los últimos 3 segundos
-  beep(660, 0.08, 0.4, 'square');
-}
-
-// Desbloquear AudioContext en primer toque (requerido en iOS)
-document.addEventListener('touchstart', () => { try { getAudioCtx(); } catch(e){} }, { once: true });
-
-// ---- INTERVALS ----
-function adjustTime(type, unit, delta) {
-  if (type === 'work') {
-    if (unit === 'min') ivWorkMin = Math.max(0, Math.min(59, ivWorkMin + delta));
-    else ivWorkSec = Math.max(0, Math.min(59, ivWorkSec + delta));
-    if (ivWorkMin === 0 && ivWorkSec < 5) { ivWorkSec = 5; } // min 5s
-    document.getElementById('work-min').textContent = String(ivWorkMin).padStart(2,'0');
-    document.getElementById('work-sec').textContent = String(ivWorkSec).padStart(2,'0');
+// INTERVALS
+function adjustTime(type,unit,delta){
+  if(type==='work'){
+    if(unit==='min') ivWorkMin=Math.max(0,Math.min(59,ivWorkMin+delta));
+    else ivWorkSec=Math.max(0,Math.min(59,ivWorkSec+delta));
+    if(ivWorkMin===0&&ivWorkSec<5) ivWorkSec=5;
+    document.getElementById('work-min').textContent=String(ivWorkMin).padStart(2,'0');
+    document.getElementById('work-sec').textContent=String(ivWorkSec).padStart(2,'0');
   } else {
-    if (unit === 'min') ivRestMin = Math.max(0, Math.min(59, ivRestMin + delta));
-    else ivRestSec = Math.max(0, Math.min(59, ivRestSec + delta));
-    document.getElementById('rest-min').textContent = String(ivRestMin).padStart(2,'0');
-    document.getElementById('rest-sec').textContent = String(ivRestSec).padStart(2,'0');
+    if(unit==='min') ivRestMin=Math.max(0,Math.min(59,ivRestMin+delta));
+    else ivRestSec=Math.max(0,Math.min(59,ivRestSec+delta));
+    document.getElementById('rest-min').textContent=String(ivRestMin).padStart(2,'0');
+    document.getElementById('rest-sec').textContent=String(ivRestSec).padStart(2,'0');
   }
 }
-
-function adjustRepeats(delta) {
-  ivRepeats = Math.max(1, Math.min(20, ivRepeats + delta));
-  document.getElementById('repeats-display').textContent = ivRepeats;
+function adjustRepeats(delta){ ivRepeats=Math.max(1,Math.min(20,ivRepeats+delta)); document.getElementById('repeats-display').textContent=ivRepeats; }
+function startIntervals(){
+  try{getAudioCtx();}catch(e){}
+  ivCurrentSerie=1; ivPhase='work'; ivTimeLeft=ivWorkMin*60+ivWorkSec; ivRunning=true;
+  document.getElementById('interval-config-display').style.display='none';
+  document.getElementById('interval-running-display').style.display='block';
+  updateIntervalDisplay(); playWorkSound();
+  ivInterval=setInterval(tickInterval,1000);
 }
-
-
-
-function tickInterval() {
+function tickInterval(){
   ivTimeLeft--;
-  if (ivTimeLeft <= 0) {
-    if (ivPhase === 'work') {
-      const restTotal = ivRestMin * 60 + ivRestSec;
-      if (restTotal > 0) {
-        ivPhase = 'rest';
-        ivTimeLeft = restTotal;
-        playRestSound();
-      } else {
-        nextSerie();
-        return;
-      }
-    } else {
-      nextSerie();
-      return;
-    }
-  } else if (ivTimeLeft <= 3) {
-    playCountdownBeep();
-  }
+  if(ivTimeLeft<=0){
+    if(ivPhase==='work'){const rt=ivRestMin*60+ivRestSec;if(rt>0){ivPhase='rest';ivTimeLeft=rt;playRestSound();}else{nextSerie();return;}}
+    else{nextSerie();return;}
+  } else if(ivTimeLeft<=3) playCountdownBeep();
   updateIntervalDisplay();
 }
-
-function startIntervals() {
-  // Unlock audio on button press
-  try { getAudioCtx(); } catch(e) {}
-  ivCurrentSerie = 1;
-  ivPhase = 'work';
-  ivTimeLeft = ivWorkMin * 60 + ivWorkSec;
-  ivRunning = true;
-  document.getElementById('interval-config-display').style.display = 'none';
-  document.getElementById('interval-running-display').style.display = 'block';
-  updateIntervalDisplay();
-  playWorkSound();
-  ivInterval = setInterval(tickInterval, 1000);
+function nextSerie(){
+  if(ivCurrentSerie>=ivRepeats){stopIntervals(true);return;}
+  ivCurrentSerie++; ivPhase='work'; ivTimeLeft=ivWorkMin*60+ivWorkSec;
+  playWorkSound(); updateIntervalDisplay();
+}
+function updateIntervalDisplay(){
+  const isWork=ivPhase==='work';
+  const total=isWork?(ivWorkMin*60+ivWorkSec):(ivRestMin*60+ivRestSec);
+  const pct=total>0?((total-ivTimeLeft)/total*100):0;
+  document.getElementById('iv-phase').textContent=isWork?'TRABAJO':'DESCANSO';
+  document.getElementById('iv-phase').className='interval-phase '+ivPhase;
+  document.getElementById('iv-countdown').textContent=String(Math.floor(ivTimeLeft/60)).padStart(2,'0')+':'+String(ivTimeLeft%60).padStart(2,'0');
+  document.getElementById('iv-countdown').className='interval-countdown '+ivPhase;
+  document.getElementById('iv-progress').className='interval-progress-fill '+ivPhase;
+  document.getElementById('iv-progress').style.width=pct+'%';
+  document.getElementById('iv-info').textContent=`Serie ${ivCurrentSerie} de ${ivRepeats}`;
+}
+function stopIntervals(completed=false){
+  clearInterval(ivInterval); ivRunning=false;
+  document.getElementById('interval-config-display').style.display='block';
+  document.getElementById('interval-running-display').style.display='none';
+  if(completed){playFinishSound();showToast('>> SERIES COMPLETADAS <<');}
 }
 
-function nextSerie() {
-  if (ivCurrentSerie >= ivRepeats) {
-    stopIntervals(true);
-    return;
-  }
-  ivCurrentSerie++;
-  ivPhase = 'work';
-  ivTimeLeft = ivWorkMin * 60 + ivWorkSec;
-  playWorkSound();
-  updateIntervalDisplay();
-}
-
-function updateIntervalDisplay() {
-  const isWork = ivPhase === 'work';
-  const total = isWork ? (ivWorkMin*60+ivWorkSec) : (ivRestMin*60+ivRestSec);
-  const pct = total > 0 ? ((total - ivTimeLeft) / total * 100) : 0;
-
-  const phaseEl = document.getElementById('iv-phase');
-  const countEl = document.getElementById('iv-countdown');
-  const progEl = document.getElementById('iv-progress');
-
-  phaseEl.textContent = isWork ? '🔥 TRABAJO' : '💤 DESCANSO';
-  phaseEl.className = 'interval-phase ' + ivPhase;
-  countEl.textContent = String(Math.floor(ivTimeLeft/60)).padStart(2,'0') + ':' + String(ivTimeLeft%60).padStart(2,'0');
-  countEl.className = 'interval-countdown ' + ivPhase;
-  progEl.className = 'interval-progress-fill ' + ivPhase;
-  progEl.style.width = pct + '%';
-  document.getElementById('iv-info').textContent = `Serie ${ivCurrentSerie} de ${ivRepeats}`;
-}
-
-function stopIntervals(completed = false) {
-  clearInterval(ivInterval);
-  ivRunning = false;
-  document.getElementById('interval-config-display').style.display = 'block';
-  document.getElementById('interval-running-display').style.display = 'none';
-  if (completed) { playFinishSound(); showToast('>> SERIES COMPLETADAS <<'); }
-}
-
-// ---- UTILS ----
-function formatTime(s) {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
+// UTILS
+function formatTime(s){
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60);
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
-
-function formatPace(secPerKm) {
-  if (!isFinite(secPerKm) || secPerKm <= 0) return '--:--';
-  const m = Math.floor(secPerKm / 60);
-  const s = Math.floor(secPerKm % 60);
-  return `${m}:${String(s).padStart(2,'0')}`;
+function formatPace(sPerKm){
+  if(!isFinite(sPerKm)||sPerKm<=0) return '--:--';
+  return `${Math.floor(sPerKm/60)}:${String(Math.floor(sPerKm%60)).padStart(2,'0')}`;
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-// ---- SERVICE WORKER ----
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log('SW registrado'))
-      .catch(e => console.log('SW error:', e));
+// SW
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(e=>console.log('SW:',e));
   });
 }
 </script>
