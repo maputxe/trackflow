@@ -389,7 +389,8 @@ const SVG_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" width="24" heigh
 let currentPage='tracker', selectedActivity='caminar';
 let isRunning=false, isPaused=false, startTime=null, pausedTime=0;
 let timerInterval=null, watchId=null, lastPos=null;
-let totalDistance=0, currentSpeed=0;
+let totalDistance=0, currentSpeed=0, smoothedSpeed=0;
+let speedBuffer=[]; // últimas lecturas para promedio móvil ~10s
 let trackPoints=[], kmSplits=[], kmDistAcc=0, kmSpeedAcc=[], kmStartTime=null;
 let history=[], pendingSummary=null;
 try { history=JSON.parse(localStorage.getItem('tf_history')||'[]'); } catch(e){ history=[]; }
@@ -422,7 +423,7 @@ function toggleActivity() {
 
 function startActivity() {
   isRunning=true; isPaused=false; startTime=Date.now();
-  totalDistance=0; currentSpeed=0; lastPos=null;
+  totalDistance=0; currentSpeed=0; smoothedSpeed=0; lastPos=null; speedBuffer=[];
   trackPoints=[]; kmSplits=[]; kmDistAcc=0; kmSpeedAcc=[]; kmStartTime=Date.now();
   document.getElementById('btn-stop').style.display='flex';
   document.getElementById('btn-playpause').innerHTML=SVG_PAUSE;
@@ -471,10 +472,10 @@ function updateTimer() {
   const elapsed=pausedTime+(Date.now()-startTime);
   document.getElementById('main-time').textContent=formatTime(Math.floor(elapsed/1000));
   if(totalDistance>0) document.getElementById('stat-pace').textContent=formatPace((elapsed/1000)/totalDistance);
-  // Sample speed every ~5s
+  // Sample velocidad suavizada cada ~5s
   const now=Date.now();
   if(trackPoints.length===0||(now-trackPoints[trackPoints.length-1].t)>4500)
-    trackPoints.push({speed:currentSpeed, dist:totalDistance, t:now});
+    trackPoints.push({speed:smoothedSpeed||currentSpeed, dist:totalDistance, t:now});
 }
 
 // GPS
@@ -492,18 +493,37 @@ function onGPSUpdate(pos) {
   setGpsStatus(true,'GPS activo');
   const {latitude,longitude,speed,accuracy}=pos.coords;
   if(accuracy>100) return;
+
   if(lastPos) {
     const dist=haversine(lastPos.lat,lastPos.lng,latitude,longitude);
     const timeDiff=(Date.now()-lastPos.time)/1000;
     if(timeDiff<=0) return;
-    const impliedMs=(dist*1000)/timeDiff;
-    if(impliedMs>15||dist<0.002) return;
+
+    const impliedMs=(dist*1000)/timeDiff; // m/s
+    // Umbral adaptado: bici hasta 60km/h (16.7m/s), correr/caminar hasta 30km/h (8.3m/s)
+    const maxMs = selectedActivity==='bici' ? 16.7 : 8.3;
+    if(impliedMs>maxMs||dist<0.002) return;
+
     totalDistance+=dist;
     kmDistAcc+=dist;
     document.getElementById('stat-km').textContent=totalDistance.toFixed(2);
-    const spd=(dist/timeDiff)*3600;
-    currentSpeed=spd;
-    kmSpeedAcc.push(spd);
+
+    // Velocidad cruda de esta lectura
+    const rawSpd=(dist/timeDiff)*3600;
+
+    // Usar speed del chip GPS si está disponible (más preciso)
+    const chipSpd=(speed!==null&&speed>=0&&speed<maxMs)?speed*3.6:rawSpd;
+    currentSpeed=chipSpd;
+
+    // Promedio móvil ~10 segundos
+    speedBuffer.push({spd:chipSpd, t:Date.now()});
+    const cutoff=Date.now()-10000;
+    speedBuffer=speedBuffer.filter(s=>s.t>cutoff);
+    smoothedSpeed=speedBuffer.reduce((a,b)=>a+b.spd,0)/speedBuffer.length;
+
+    // Para splits usamos speed suavizada
+    kmSpeedAcc.push(smoothedSpeed);
+
     if(kmDistAcc>=1.0) {
       const splitSecs=(Date.now()-kmStartTime)/1000;
       const avg=kmSpeedAcc.reduce((a,b)=>a+b,0)/kmSpeedAcc.length;
@@ -511,9 +531,11 @@ function onGPSUpdate(pos) {
       kmDistAcc=0; kmSpeedAcc=[]; kmStartTime=Date.now();
     }
   }
+
   lastPos={lat:latitude,lng:longitude,time:Date.now()};
-  if(speed!==null&&speed>=0&&speed<15) currentSpeed=speed*3.6;
-  document.getElementById('stat-speed').textContent=currentSpeed.toFixed(1);
+  // Mostramos velocidad suavizada en pantalla
+  const displaySpd=speedBuffer.length>0?smoothedSpeed:currentSpeed;
+  document.getElementById('stat-speed').textContent=displaySpd.toFixed(1);
 }
 function onGPSError(){setGpsStatus(false,'Error GPS');}
 function setGpsStatus(active,text){
@@ -564,6 +586,13 @@ function showAnalysis(data, canSave) {
   document.getElementById('analysis-modal').scrollTop=0;
 }
 
+function smoothArray(arr, window=3) {
+  return arr.map((v,i)=>{
+    const slice=arr.slice(Math.max(0,i-window+1),i+1);
+    return slice.reduce((a,b)=>a+b,0)/slice.length;
+  });
+}
+
 function drawSpeedChart(points, totalSecs) {
   const canvas=document.getElementById('speed-chart');
   const ctx=canvas.getContext('2d');
@@ -575,7 +604,9 @@ function drawSpeedChart(points, totalSecs) {
     ctx.fillStyle='#1f6635'; ctx.font='12px Share Tech Mono'; ctx.textAlign='center';
     ctx.fillText('Pocos datos para graficar',W/2,H/2); return;
   }
-  const speeds=points.map(p=>p.speed);
+  // Suavizar velocidades con ventana de 5 muestras (~25 segundos)
+  const rawSpeeds=points.map(p=>p.speed);
+  const speeds=smoothArray(rawSpeeds, 5);
   const maxS=Math.max(...speeds,1);
   const pad={top:10,bottom:22,left:30,right:8};
   const cW=W-pad.left-pad.right, cH=H-pad.top-pad.bottom;
@@ -589,9 +620,9 @@ function drawSpeedChart(points, totalSecs) {
   }
   // area
   ctx.beginPath();
-  points.forEach((p,i)=>{
-    const x=pad.left+(i/(points.length-1))*cW;
-    const y=pad.top+cH-(p.speed/maxS)*cH;
+  speeds.forEach((s,i)=>{
+    const x=pad.left+(i/(speeds.length-1))*cW;
+    const y=pad.top+cH-(s/maxS)*cH;
     i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
   });
   ctx.lineTo(pad.left+cW,pad.top+cH); ctx.lineTo(pad.left,pad.top+cH); ctx.closePath();
@@ -600,9 +631,9 @@ function drawSpeedChart(points, totalSecs) {
   ctx.fillStyle=grad; ctx.fill();
   // line
   ctx.beginPath(); ctx.strokeStyle='#39ff6e'; ctx.lineWidth=2;
-  points.forEach((p,i)=>{
-    const x=pad.left+(i/(points.length-1))*cW;
-    const y=pad.top+cH-(p.speed/maxS)*cH;
+  speeds.forEach((s,i)=>{
+    const x=pad.left+(i/(speeds.length-1))*cW;
+    const y=pad.top+cH-(s/maxS)*cH;
     i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
   });
   ctx.stroke();
